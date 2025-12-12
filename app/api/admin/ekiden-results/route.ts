@@ -39,7 +39,7 @@ export async function POST(req: Request) {
   const team = await prisma.ekiden_no_team.findUnique({ where: { id: Number(data.Ekiden_no_teamId) }, include: { Ekiden_th: true } })
   if (!team) return NextResponse.json({ error: "team not found" }, { status: 400 })
   const th = team.Ekiden_th
-  const interval = await prisma.Ekiden_th_interval.findUnique({ where: { id: Number(data.Ekiden_th_intervalId) } })
+  const interval = await prisma.ekiden_th_interval.findUnique({ where: { id: Number(data.Ekiden_th_intervalId) } })
   if (!interval || interval.Ekiden_thId !== th.id) return NextResponse.json({ error: "interval not in edition" }, { status: 400 })
   const student = await prisma.student.findUnique({ where: { id: Number(data.studentId) } })
   if (!student) return NextResponse.json({ error: "student not found" }, { status: 400 })

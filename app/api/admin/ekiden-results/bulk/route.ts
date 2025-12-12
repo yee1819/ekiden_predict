@@ -17,7 +17,7 @@ export async function POST(req: Request) {
   const team = await prisma.ekiden_no_team.findUnique({ where: { id: Number(data.Ekiden_no_teamId) }, include: { Ekiden_th: true } })
   if (!team) return NextResponse.json({ error: "team not found" }, { status: 400 })
   const th = team.Ekiden_th
-  const entries: Array<{ Ekiden_th_intervalId: number, studentId: number, score: number, rank: number }> = Array.isArray(data.entries) ? data.entries : []
+  const entries: Array<{ Ekiden_th_intervalId?: number, ekiden_intervalId?: number, studentId: number, score: number, rank?: number }> = Array.isArray(data.entries) ? data.entries : []
   if (entries.length === 0) return NextResponse.json({ error: "empty entries" }, { status: 400 })
   const thIntervalRows = await prisma.ekiden_th_interval.findMany({ where: { Ekiden_thId: th.id }, select: { id: true, ekiden_intervalId: true } })
   const validThIds = new Set(thIntervalRows.map(x => x.id))

@@ -41,3 +41,6 @@ yarn-error.log*
 next-env.d.ts
 
 /app/generated/prisma
+
+mydb_backup_20240202.sql
+./mydb_backup_20240202.sql

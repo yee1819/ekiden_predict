@@ -1,10 +1,10 @@
 "use client"
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState, Suspense } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "@/app/lib/auth-client"
 import { Table, Select, Modal, Input, message } from "antd"
 import { useSearchParams } from "next/navigation"
-export default function TeamMembersAdminPage() {
+function TeamMembersAdminInner() {
   const router = useRouter()
   const { data: session, isPending } = useSession()
   useEffect(() => { if (!isPending && !session) router.replace("/admin/login") }, [isPending, session])
@@ -160,5 +160,13 @@ export default function TeamMembersAdminPage() {
         </div>
       </Modal>
     </div>
+  )
+}
+
+export default function TeamMembersAdminPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 12 }}>加载中...</div>}>
+      <TeamMembersAdminInner />
+    </Suspense>
   )
 }

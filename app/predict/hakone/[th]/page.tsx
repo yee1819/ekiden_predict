@@ -267,7 +267,14 @@ export default function Page() {
             (acc, p) => { acc[p.id] = { score1500m: p.score1500m, score5000m: p.score5000m, score10000m: p.score10000m, scoreHalf: p.scoreHalf }; return acc },
             {}
         )
-        const data = { year: yearLabel, school: selectedSchool.name, predicted: !!predictMode, slots, playerEntries, playerScores }
+        const schoolName = selectedSchool?.name ?? (() => {
+            try {
+                const t = teams.find((x: any) => x.id === selectedTeamId)
+                const s = schools.find((ss: any) => ss.id === t?.schoolId)
+                return s?.name ?? String(t?.schoolId ?? "")
+            } catch { return "" }
+        })()
+        const data = { year: yearLabel, school: schoolName, predicted: !!predictMode, slots, playerEntries, playerScores }
         try { localStorage.setItem("hakone_summary", JSON.stringify(data)) } catch { }
         router.push(`/predict/hakone/${yearLabel}/summary`)
     }

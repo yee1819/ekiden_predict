@@ -51,7 +51,7 @@ export async function DELETE(req: Request) {
         await tx.ekiden_Team_Member.deleteMany({ where: { ekiden_no_teamId: { in: teamIds } } })
       }
       await tx.ekiden_no_team.deleteMany({ where: { Ekiden_thId: id } })
-      await tx.Ekiden_th_interval.deleteMany({ where: { Ekiden_thId: id } })
+      await tx.ekiden_th_interval.deleteMany({ where: { Ekiden_thId: id } })
       await tx.ekiden_th.delete({ where: { id } })
     })
     return NextResponse.json({ ok: true })

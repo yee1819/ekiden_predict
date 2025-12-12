@@ -189,7 +189,6 @@ export default function ResultPage() {
     }
 
 
-    type Grade = 1 | 2 | 3 | 4
     function calcGrade(entryYear?: number): Grade | undefined {
         if (!eventYear || !entryYear) return undefined
         const g = eventYear - entryYear + 1

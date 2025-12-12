@@ -12,7 +12,8 @@ export async function POST(req: Request) {
   if (!school) return NextResponse.json({ error: "school not found" }, { status: 400 })
   const entryYear = data.entryYear != null ? Number(data.entryYear) : null
   const collegePB = data.collegePB != null ? Number(data.collegePB) : null
-  const names: string[] = Array.isArray(data.names) ? data.names.map((n: any) => String(n).trim()).filter(n => n.length > 0) : []
+  const rawNames: unknown[] = Array.isArray(data.names) ? data.names : []
+  const names: string[] = rawNames.map(x => String(x).trim()).filter(x => x.length > 0)
   if (names.length === 0) return NextResponse.json({ error: "empty names" }, { status: 400 })
   const dedup = Array.from(new Set(names))
   const created = [] as any[]
