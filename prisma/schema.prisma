@@ -1,0 +1,343 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  // url      = env("DATABASE_URL")
+}
+
+///驿传具体信息
+
+model ekiden {
+  id                    Int               @id @default(autoincrement())
+  ///驿传名称
+  name                  String
+  ///介绍
+  description           String
+  /// 队伍需要的队员人数
+  required_team_members Int               @default(16)
+  /// 区间
+  ekiden_ranges         ekiden_interval[]
+  /// 每个学校的记录  ---不是重点先不写
+  // school_ekiden_record school_ekiden_record[]
+
+  ekiden_items Ekiden_th[]
+}
+
+///驿传具体的区间
+
+model ekiden_interval {
+  id          Int    @id @default(autoincrement())
+  ///区间名称
+  name        String
+  ///区间描述
+  description String
+  /// 公里数
+  kilometer   Float
+  ///区间记录（单位：秒）
+  record      Float
+
+  ///地形图（可选）
+  map String?
+
+  //位置信息展示不打算填写
+  ///区间的开始位置
+  start_point String?
+  ///区间的结束位置
+  end_point   String?
+
+  ekidenId Int
+  ekiden   ekiden @relation(fields: [ekidenId], references: [id])
+  // 由 student_ekiden_item 侧维护可选外键
+  // school_ekiden_range_record school_ekiden_range_record[]
+
+  Ekiden_th_interval Ekiden_th_interval[]
+
+  @@index([ekidenId])
+}
+
+///学校
+
+model school {
+  id       Int       @id @default(autoincrement())
+  name     String
+  ///教练
+  // coachs    String
+  ///队长    
+  // captain   String
+  ///学生
+  students student[]
+
+  ekiden_no_team Ekiden_no_team[]
+
+  //  不是重点
+  ///学校在每项驿传的记录
+  // records    school_ekiden_record[]
+  ///学校在每项驿传区间的记录
+  // school_ekiden_range_record school_ekiden_range_record[]
+}
+
+model student {
+  id       Int    @id @default(autoincrement())
+  name     String
+  ///学校id
+  schoolId Int
+  school   school @relation(fields: [schoolId], references: [id])
+
+  //学生的成绩
+  /// 1500m
+  score_1500m         Float?
+  /// 5000m
+  score_5000m         Float?
+  /// 10000m
+  score_10000m        Float?
+  /// 半程马拉松
+  score_half_marathon Float?
+  /// 全程马拉松
+  score_full_marathon Float?
+  /// 高校PB
+  score_college_pb    Float?
+  /// 入学年份（可选）
+  entryYear           Int?
+  studentEkidenItems  student_ekiden_item[]
+  teamMemberships     Ekiden_Team_Member[]
+  ekidenTeamPredicts  Ekiden_Team_Predict[]
+
+  @@index([schoolId])
+}
+
+///学校在每项驿传的记录  也先不写---三大驿传每个学校的数据都很要命
+// model school_ekiden_record {
+//   id        Int      @id @default(autoincrement())
+//   schoolId  Int
+//   school    school   @relation(fields: [schoolId], references: [id])
+//   ekidenId  Int
+//   ekiden    ekiden   @relation(fields: [ekidenId], references: [id])
+//   ///记录的创建时间
+//   createdAt DateTime @default(now())
+//   ///记录的更新时间
+//   updatedAt DateTime @updatedAt
+// }
+
+///学校在个驿传的区间的记录----先不写吧，查数据要命，有的底部学校甚至几十年前的 
+// model school_ekiden_range_record {
+//   id        Int      @id @default(autoincrement())
+//   schoolId  Int
+//   school    school   @relation(fields: [schoolId], references: [id])
+//   ekidenId  Int
+//   ekiden_range    ekiden_range   @relation(fields: [ekidenId], references: [id])
+//   ///记录的创建时间
+//   createdAt DateTime @default(now())
+//   ///记录的更新时间
+//   updatedAt DateTime @updatedAt
+// }
+
+/// 每届驿传
+
+model Ekiden_th {
+  id        Int @id @default(autoincrement())
+  /// 第几届
+  ekiden_th Int
+
+  ///年份
+  year Int
+
+  ekidenId Int
+  ekiden   ekiden @relation(fields: [ekidenId], references: [id])
+
+  // student_ekiden_IItem student_ekiden_item
+  Ekiden_no_team Ekiden_no_team[]
+
+  /// 预测
+  Ekiden_Team_Predict Ekiden_Team_Predict[]
+
+  Ekiden_th_interval Ekiden_th_interval[]
+  studentEkidenItems student_ekiden_item[]
+}
+
+/// 每个学生的那个区间的成绩
+
+model student_ekiden_item {
+  id                   Int                @id @default(autoincrement())
+  score                Float /// 0：替补 -1：未完成 其他：成绩
+  ///排名
+  rank                 Int
+  ///年级
+  grade                grade
+  Ekiden_th_intervalId Int
+  Ekiden_th_interval   Ekiden_th_interval @relation(fields: [Ekiden_th_intervalId], references: [id])
+
+  Ekiden_no_teamId Int
+  Ekiden_no_team   Ekiden_no_team @relation(fields: [Ekiden_no_teamId], references: [id])
+  Ekiden_thId      Int
+  Ekiden_th        Ekiden_th      @relation(fields: [Ekiden_thId], references: [id])
+
+  studentId Int
+  student   student @relation(fields: [studentId], references: [id])
+
+  /// 一个队伍在某届的某区间只能有一名选手
+  // 允许同一选手在同一届拥有多个区间成绩（按业务需求）
+  @@unique([Ekiden_th_intervalId, Ekiden_no_teamId])
+  @@index([Ekiden_th_intervalId])
+  @@index([Ekiden_no_teamId])
+  @@index([Ekiden_thId])
+  @@index([studentId])
+}
+
+///年级
+
+enum grade {
+  ONE
+  TWO
+  THREE
+  FOUR
+}
+
+///这个表是每次比赛的队伍  每届比赛的教练、学生、队长都不一定是同一个人
+
+model Ekiden_no_team {
+  id Int @id @default(autoincrement())
+
+  schoolId Int
+  school   school @relation(fields: [schoolId], references: [id])
+
+  Ekiden_thId Int
+  Ekiden_th   Ekiden_th @relation(fields: [Ekiden_thId], references: [id])
+
+  coach       String
+  teamMembers Ekiden_Team_Member[]
+  leader      String
+
+  Ekiden_Team_Predict Ekiden_Team_Predict[]
+  studentEkidenItems  student_ekiden_item[]
+
+  @@unique([schoolId, Ekiden_thId])
+  @@index([schoolId])
+  @@index([Ekiden_thId])
+}
+
+model Ekiden_Team_Member {
+  id               Int            @id @default(autoincrement())
+  ekiden_no_teamId Int
+  ekiden_no_team   Ekiden_no_team @relation(fields: [ekiden_no_teamId], references: [id])
+
+  studentId Int
+  student   student @relation(fields: [studentId], references: [id])
+
+  role TeamRole
+
+  @@unique([ekiden_no_teamId, studentId])
+  @@index([studentId])
+}
+
+enum TeamRole {
+  STARTER
+  RESERVE
+}
+
+model Ekiden_Team_Predict {
+  id                   Int                @id @default(autoincrement())
+  Ekiden_no_team       Ekiden_no_team     @relation(fields: [Ekiden_no_teamId], references: [id])
+  Ekiden_no_teamId     Int
+  Ekiden_thId          Int
+  Ekiden_th            Ekiden_th          @relation(fields: [Ekiden_thId], references: [id])
+  Ekiden_th_intervalId Int
+  Ekiden_th_interval   Ekiden_th_interval @relation(fields: [Ekiden_th_intervalId], references: [id])
+  studentId            Int?
+  student              student?           @relation(fields: [studentId], references: [id])
+  predict_score_sec    Int?
+  userName             String
+  opinion              String?            @db.Text
+  ipAddress            String?            @db.Text
+  batchId              String?            @db.Text
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @default(now()) @updatedAt
+
+  // 允许同队同届同区间多条记录（支持多次预测）
+  @@index([Ekiden_thId])
+  @@index([Ekiden_no_teamId])
+}
+
+/// 届--区间
+
+model Ekiden_th_interval {
+  id          Int       @id @default(autoincrement())
+  /// 第几届
+  Ekiden_thId Int
+  Ekiden_th   Ekiden_th @relation(fields: [Ekiden_thId], references: [id])
+
+  ekiden_intervalId Int
+  /// 区间
+  ekiden_interval   ekiden_interval @relation(fields: [ekiden_intervalId], references: [id])
+
+  student_ekiden_item student_ekiden_item[]
+  ekidenTeamPredicts  Ekiden_Team_Predict[]
+
+  @@index([Ekiden_thId])
+  @@index([ekiden_intervalId])
+}
+
+model User {
+  id            String    @id
+  name          String    @db.Text
+  email         String
+  emailVerified Boolean   @default(false)
+  image         String?   @db.Text
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?  @db.Text
+  userAgent String?  @db.Text
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  // @@index([userId(length: 191)])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String    @db.Text
+  providerId            String    @db.Text
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?   @db.Text
+  refreshToken          String?   @db.Text
+  idToken               String?   @db.Text
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?   @db.Text
+  password              String?   @db.Text
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  // @@index([userId(length: 191)])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String   @db.Text
+  value      String   @db.Text
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // @@index([identifier(length: 191)])
+  @@map("verification")
+}
