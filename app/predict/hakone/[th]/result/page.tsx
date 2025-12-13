@@ -3,6 +3,8 @@ import React, { useEffect, useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Select, Tooltip, Modal, Input } from "antd"
 
+
+
 export default function ResultPage() {
     const params = useParams() as { th?: string }
     const router = useRouter()
