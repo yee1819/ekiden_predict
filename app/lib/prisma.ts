@@ -18,5 +18,5 @@ function buildMariaAdapter() {
 
 const adapter = buildMariaAdapter()
 const globalForPrisma = global as unknown as { prisma?: PrismaClient }
-export const prisma = globalForPrisma.prisma ?? new PrismaClient({ adapter })
+export const prisma = globalForPrisma.prisma ?? new PrismaClient({ adapter, log: ['query', 'info', 'warn', 'error'] })
 if (!globalForPrisma.prisma) globalForPrisma.prisma = prisma

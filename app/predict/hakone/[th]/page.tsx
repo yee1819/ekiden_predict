@@ -24,13 +24,8 @@ type Player = {
 export default function Page() {
     const params = useParams() as { th?: string }
 
-    const yearLabel = params?.th ?? ""
+    const yearLabel = params?.th ?? "102"
     const router = useRouter()
-    useEffect(() => {
-        if (params.th !== "102") {
-            router.push("/predict/hakone/102")
-        }
-    }, [params.th, router])
 
 
     const [ekidens, setEkidens] = useState<any[]>([])
@@ -297,14 +292,15 @@ export default function Page() {
     useEffect(() => {
         ; (async () => {
             const ekidensRes = await fetch("/api/admin/ekidens")
-            const ekidensData = await ekidensRes.json()
+            const ekidensData = ekidensRes.ok ? await ekidensRes.json() : []
             setEkidens(ekidensData)
             const schoolsRes = await fetch("/api/admin/schools")
-            setSchools(await schoolsRes.json())
+            const schoolsData = schoolsRes.ok ? await schoolsRes.json() : []
+            setSchools(schoolsData)
             const hakone = ekidensData.find((e: any) => e.name === "箱根")
             if (!hakone) return
             const edRes = await fetch(`/api/admin/editions?ekidenId=${hakone.id}`)
-            const eds = await edRes.json()
+            const eds = edRes.ok ? await edRes.json() : []
             setEditions(eds)
             const ed = eds.find((x: any) => String(x.ekiden_th) === String(yearLabel))
             if (ed) { setHakoneThId(ed.id); setEventYear(Number(ed.year)) }
@@ -315,7 +311,7 @@ export default function Page() {
         ; (async () => {
             if (!hakoneThId) { setTeams([]); return }
             const res = await fetch(`/api/admin/teams?Ekiden_thId=${hakoneThId}`)
-            const list = await res.json()
+            const list = res.ok ? await res.json() : []
             setTeams(list)
             if (list.length > 0) {
                 const t0 = list[list.length - 1]
@@ -334,17 +330,19 @@ export default function Page() {
             if (!selectedTeamId) { setMembers([]); setStudents([]); setPlayers([]); setTeamResults([]); return }
             const t = teams.find((x: any) => x.id === selectedTeamId)
             if (!t) return
-            const [mems, stus] = await Promise.all([
-                fetch(`/api/admin/team-members?ekiden_no_teamId=${selectedTeamId}`).then(r => r.json()),
-                fetch(`/api/admin/students?schoolId=${t.schoolId}`).then(r => r.json())
+            const [memsRes, stusRes] = await Promise.all([
+                fetch(`/api/admin/team-members?ekiden_no_teamId=${selectedTeamId}`),
+                fetch(`/api/admin/students?schoolId=${t.schoolId}`)
             ])
+            const mems = memsRes.ok ? await memsRes.json() : []
+            const stus = stusRes.ok ? await stusRes.json() : []
             setMembers(mems)
             setStudents(stus)
             const resR = await fetch(`/api/admin/ekiden-results?ekiden_no_teamId=${selectedTeamId}${hakoneThId ? `&Ekiden_thId=${hakoneThId}` : ""}`)
-            const items = await resR.json()
+            const items = resR.ok ? await resR.json() : []
             setTeamResults(items)
-            const ekidensRes = await fetch("/api/admin/ekidens")
-            const ekidensData = await ekidensRes.json()
+            const ekidensRes2 = await fetch("/api/admin/ekidens")
+            const ekidensData = ekidensRes2.ok ? await ekidensRes2.json() : []
             const nameToId = Object.fromEntries(ekidensData.map((e: any) => [e.name, e.id])) as Record<string, number>
             const map = new Map<number, any>()
             stus.forEach((s: any) => map.set(s.id, s))

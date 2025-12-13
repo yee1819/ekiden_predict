@@ -35,18 +35,18 @@ export default function ResultPage() {
     useEffect(() => {
         ; (async () => {
             const ekidensRes = await fetch("/api/admin/ekidens")
-            const ekidensData = await ekidensRes.json()
+            const ekidensData = ekidensRes.ok ? await ekidensRes.json() : []
             const idNameMap: Record<number, "出雲" | "全日本" | "箱根" | undefined> = {}
             ekidensData.forEach((e: any) => { if (e?.name === "出雲" || e?.name === "全日本" || e?.name === "箱根") idNameMap[e.id] = e.name })
             setEkidenIdToName(idNameMap)
             const hakone = ekidensData.find((e: any) => e.name === "箱根")
             if (!hakone) return
             const edRes = await fetch(`/api/admin/editions?ekidenId=${hakone.id}`)
-            const eds = await edRes.json()
+            const eds = edRes.ok ? await edRes.json() : []
             const ed = eds.find((x: any) => String(x.ekiden_th) === String(params?.th ?? ""))
             if (ed) { setEkidenThId(ed.id); setEventYear(Number(ed.year)) }
             const schoolsRes = await fetch("/api/admin/schools")
-            const schoolsData = await schoolsRes.json()
+            const schoolsData = schoolsRes.ok ? await schoolsRes.json() : []
             setSchools(schoolsData)
         })()
     }, [params?.th])
@@ -55,24 +55,24 @@ export default function ResultPage() {
         ; (async () => {
             if (!ekidenThId) return
             const totalRes = await fetch(`/api/predict/hakone/count?ekidenThId=${ekidenThId}`)
-            const total = await totalRes.json()
+            const total = totalRes.ok ? await totalRes.json() : {}
             setTotalCount(Number(total?.count || 0))
             const teamsRes = await fetch(`/api/admin/teams?Ekiden_thId=${ekidenThId}`)
-            const tlist = await teamsRes.json()
+            const tlist = teamsRes.ok ? await teamsRes.json() : []
             setTeams(tlist)
             const schoolId = selectedSchoolId ?? (schoolName ? (schools.find((s: any) => s.name === schoolName)?.id) : undefined)
             const paramsStr = schoolId ? `schoolId=${schoolId}` : (schoolName ? `schoolName=${encodeURIComponent(schoolName)}` : "")
             const teamRes = await fetch(`/api/predict/hakone/count?ekidenThId=${ekidenThId}${paramsStr ? `&${paramsStr}` : ""}`)
-            const team = await teamRes.json()
+            const team = teamRes.ok ? await teamRes.json() : {}
             setTeamCount(Number(team?.count || 0))
             const listRes = await fetch(`/api/predict/hakone/list?ekidenThId=${ekidenThId}${paramsStr ? `&${paramsStr}` : ""}`)
-            const lst = await listRes.json()
+            const lst = listRes.ok ? await listRes.json() : null
             setList(lst)
             try {
                 const ids = Array.from(new Set((lst?.groups ?? []).flatMap((g: any) => g.items.map((it: any) => it.playerId)).filter((id: any) => Number.isFinite(id))))
                 if (ids.length) {
                     const entRes = await fetch(`/api/admin/student-entries?studentIds=${ids.join(',')}`)
-                    const ent = await entRes.json()
+                    const ent = entRes.ok ? await entRes.json() : []
                     const map: Record<number, any[]> = {}
                     for (const e of ent) {
                         if (!map[e.studentId]) map[e.studentId] = []

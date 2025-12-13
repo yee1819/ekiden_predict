@@ -3,8 +3,12 @@ import { prisma } from "@/app/lib/prisma"
 import { headers } from "next/headers"
 import { auth } from "@/app/lib/auth"
 export async function GET() {
-  const items = await prisma.ekiden.findMany({ orderBy: { id: "desc" } })
-  return NextResponse.json(items)
+  try {
+    const items = await prisma.ekiden.findMany({ orderBy: { id: "desc" } })
+    return NextResponse.json(items)
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message ?? "internal error" }, { status: 500 })
+  }
 }
 export async function POST(req: Request) {
   const session = await auth.api.getSession({ headers: await headers() })
