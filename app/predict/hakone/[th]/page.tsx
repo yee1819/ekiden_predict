@@ -24,8 +24,13 @@ type Player = {
 export default function Page() {
     const params = useParams() as { th?: string }
 
-    const yearLabel = params?.th ?? "102"
+    const yearLabel = params?.th ?? ""
     const router = useRouter()
+    useEffect(() => {
+        if (params.th !== "102") {
+            router.push("/predict/hakone/102")
+        }
+    }, [params.th, router])
 
 
     const [ekidens, setEkidens] = useState<any[]>([])
