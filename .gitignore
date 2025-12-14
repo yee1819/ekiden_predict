@@ -48,8 +48,16 @@ mydb_backup_20240202.sql
 
 
 
+
 public/data/
+
+
+TODO.md
+./TODO.md
+
+
 
 *.rar
 *.zip
 *.7z
+*.tar

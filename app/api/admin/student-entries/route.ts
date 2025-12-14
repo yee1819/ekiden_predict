@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/app/lib/prisma"
+import * as cache from "@/app/lib/cache"
 export async function GET(req: Request) {
 
   const { searchParams } = new URL(req.url)
@@ -7,6 +8,9 @@ export async function GET(req: Request) {
   if (!idsParam) return NextResponse.json([])
   const studentIds = idsParam.split(",").map(s => Number(s)).filter(n => Number.isFinite(n))
   if (studentIds.length === 0) return NextResponse.json([])
+  const name = cache.key("admin-student-entries", studentIds.slice().sort((a, b) => a - b))
+  const hit = await cache.read<any[]>(name)
+  if (hit) return NextResponse.json(hit)
   const items = await prisma.student_ekiden_item.findMany({
     where: { studentId: { in: studentIds } },
     include: { Ekiden_th: true, Ekiden_th_interval: { include: { ekiden_interval: true } } },
@@ -23,5 +27,6 @@ export async function GET(req: Request) {
     score: i.score,
     thId: i.Ekiden_thId
   }))
+  await cache.write(name, shaped)
   return NextResponse.json(shaped)
 }

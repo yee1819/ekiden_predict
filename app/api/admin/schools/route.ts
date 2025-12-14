@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/app/lib/prisma"
+import * as cache from "@/app/lib/cache"
 import { headers } from "next/headers"
 import { auth } from "@/app/lib/auth"
 export async function GET() {
+  const name = cache.key("admin-schools", "all")
+  const hit = await cache.read<any[]>(name)
+  if (hit) return NextResponse.json(hit)
   const items = await prisma.school.findMany({ orderBy: { id: "desc" } })
+  await cache.write(name, items)
   return NextResponse.json(items)
 }
 export async function POST(req: Request) {

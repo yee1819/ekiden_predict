@@ -1,6 +1,6 @@
 "use client"
 import React, { useEffect, useMemo, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { Tooltip, Select, Segmented, TimePicker } from "antd"
 import dayjs from "dayjs"
 
@@ -23,6 +23,7 @@ type Player = {
 
 export default function Page() {
     const params = useParams() as { th?: string }
+    const searchParams = useSearchParams()
 
     const yearLabel = params?.th ?? ""
     const router = useRouter()
@@ -56,7 +57,7 @@ export default function Page() {
 
     type SchoolOption = { id: number; name: string; teamId: number }
     const schoolOptions: SchoolOption[] = useMemo(
-        () => teams.map((t: any) => ({ id: t.schoolId, name: (schools.find((s: any) => s.id === t.schoolId)?.name ?? String(t.schoolId)), teamId: t.id })),
+        () => [...teams].reverse().map((t: any) => ({ id: t.schoolId, name: (schools.find((s: any) => s.id === t.schoolId)?.name ?? String(t.schoolId)), teamId: t.id })),
         [teams, schools]
     )
     const [selectedSchool, setSelectedSchool] = useState<SchoolOption | undefined>(undefined)
@@ -335,16 +336,17 @@ export default function Page() {
             const list = res.ok ? await res.json() : []
             setTeams(list)
             if (list.length > 0) {
-                const t0 = list[list.length - 1]
-                const opt = { id: t0.schoolId, name: (schools.find((s: any) => s.id === t0.schoolId)?.name ?? String(t0.schoolId)), teamId: t0.id }
+                const qSchoolId = Number(searchParams.get("schoolId"))
+                const target = Number.isFinite(qSchoolId) ? list.find((t: any) => t.schoolId === qSchoolId) || list[list.length - 1] : list[list.length - 1]
+                const opt = { id: target.schoolId, name: (schools.find((s: any) => s.id === target.schoolId)?.name ?? String(target.schoolId)), teamId: target.id }
                 setSelectedSchool(opt)
-                setSelectedTeamId(t0.id)
+                setSelectedTeamId(opt.teamId)
                 // setSelectedTeamId(5)
             }
         })()
 
 
-    }, [hakoneThId, schools])
+    }, [hakoneThId, schools, searchParams])
 
     useEffect(() => {
         ; (async () => {
@@ -370,10 +372,13 @@ export default function Page() {
             const pad2 = (n: number) => String(n).padStart(2, "0")
             const fmtMMSS = (v?: number | null) => {
                 if (v == null) return undefined
-                const t = Math.floor(Number(v))
+                const t = Number(v)
                 const mm = Math.floor(t / 60)
-                const ss = Math.floor(t % 60)
-                return `${pad2(mm)}:${pad2(ss)}`
+                const s = t - mm * 60
+                let secStr = s.toFixed(2)
+                if (secStr === "60.00") return `${pad2(mm + 1)}:00.00`
+                const [si, sf] = secStr.split(".")
+                return `${pad2(mm)}:${String(si).padStart(2, "0")}.${sf}`
             }
             const fmtHHMMSS = (v?: number | null) => {
                 if (v == null) return undefined
@@ -449,6 +454,8 @@ export default function Page() {
                         onChange={handleSchoolChange}
                         placeholder="选择学校"
                     />
+                    <button onClick={() => router.push(`/predict/hakone/${yearLabel}/pb/student`)} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6 }}>选手PB榜</button>
+                    <button onClick={() => router.push(`/predict/hakone/${yearLabel}/pb/school`)} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6 }}>学校PB榜</button>
                     <button onClick={togglePredictMode} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6 }}>{predictMode ? "关闭时间" : "预测时间"}</button>
                     <button onClick={resetAll} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6 }}>清空分配</button>
                     <button onClick={onExport} disabled={assignedIds.size !== 10} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6, opacity: assignedIds.size === 10 ? 1 : 0.5 }}>完成分配</button>
@@ -476,8 +483,9 @@ export default function Page() {
                                                 <div>地形：{intervalMeta[slot]?.elevation ?? "--"}</div>
                                                 {/* <div>说明：{intervalMeta[slot]?.desc ?? "--"}</div> */}
                                                 <img src={`/hakone/${slot}.png`} style={{
-                                                     width: "100%",
-                                                      marginTop: 8 }} />
+                                                    width: "100%",
+                                                    marginTop: 8
+                                                }} />
                                                 {/* {intervalMeta[slot]?.map ? (
                                                     
                                                 ) : (
