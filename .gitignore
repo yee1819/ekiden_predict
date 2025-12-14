@@ -49,3 +49,7 @@ mydb_backup_20240202.sql
 
 
 public/data/
+
+*.rar
+*.zip
+*.7z
