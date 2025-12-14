@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/app/lib/prisma"
+import * as cache from "@/app/lib/cache"
 import { headers } from "next/headers"
 import { auth } from "@/app/lib/auth"
 function computeGrade(entryYear: number | null, year: number): "ONE" | "TWO" | "THREE" | "FOUR" {
@@ -18,6 +19,9 @@ export async function GET(req: Request) {
   const where: any = {}
   if (teamId) where.Ekiden_no_teamId = Number(teamId)
   if (thId) where.Ekiden_thId = Number(thId)
+  const name = cache.key("admin-ekiden-results", { teamId: teamId ? Number(teamId) : null, thId: thId ? Number(thId) : null })
+  const hit = await cache.read<any[]>(name)
+  if (hit) return NextResponse.json(hit)
   const items = await prisma.student_ekiden_item.findMany({ where, include: { Ekiden_th_interval: { include: { ekiden_interval: true } } }, orderBy: { id: "desc" } })
   const shaped = items.map((i: any) => ({
     id: i.id,
@@ -30,6 +34,7 @@ export async function GET(req: Request) {
     baseIntervalId: i.Ekiden_th_interval?.ekiden_intervalId,
     intervalName: i.Ekiden_th_interval?.ekiden_interval?.name,
   }))
+  await cache.write(name, shaped)
   return NextResponse.json(shaped)
 }
 export async function POST(req: Request) {

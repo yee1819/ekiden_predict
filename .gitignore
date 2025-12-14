@@ -44,3 +44,18 @@ next-env.d.ts
 
 mydb_backup_20240202.sql
 ./mydb_backup_20240202.sql
+
+TODO.md
+./TODO.md
+
+./public/data/*
+public/data/*
+/public/data/*
+./public/data
+public/data
+/public/data
+
+*.rar
+*.zip
+*.7z
+*.tar

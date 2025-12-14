@@ -112,8 +112,11 @@ export default function ResultPage() {
         if (!sec || sec <= 0) return "—"
         if (kind === "half" || kind === "full") return formatSeconds(sec)
         const m = Math.floor(sec / 60)
-        const s = Math.floor(sec % 60)
-        return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
+        const s = sec - m * 60
+        let secStr = s.toFixed(2)
+        if (secStr === "60.00") return `${String(m + 1).padStart(2, "0")}:00.00`
+        const [si, sf] = secStr.split(".")
+        return `${String(m).padStart(2, "0")}:${String(si).padStart(2, "0")}.${sf}`
     }
     function formatPace(sec: number | undefined | null, km: number | undefined) {
         if (!sec || !km || km <= 0) return "—"
@@ -261,7 +264,7 @@ export default function ResultPage() {
             <div className="pageHead" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <h1 className="pageHeadTitle" style={{ fontSize: 20 }}>{`第${params?.th ?? ""}回箱根驿传 预测结果`}</h1>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <Select style={{ minWidth: 240 }} value={selectedSchoolId ?? undefined} options={schoolOptions} onChange={(v) => setSelectedSchoolId(v)} placeholder="选择学校" />
+                    <Select style={{ minWidth: 240 }} value={selectedSchoolId ?? undefined} options={schoolOptions} onChange={(v) => setSelectedSchoolId(v)} placeholder="选择学校" virtual={false} />
                     <Input value={filterName} onChange={e => setFilterName(e.target.value)} allowClear placeholder="筛选昵称" style={{ width: 200 }} />
                     <div>全体预测条数：{totalCount / 10}</div>
                     <div>当前学校预测条数：{teamCount / 10}</div>

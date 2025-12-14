@@ -275,8 +275,11 @@ export default function SummaryPage() {
     if (sec == null) return typeof v === "string" ? v : "—"
     if (kind === "5000" || kind === "10000") {
       const m = Math.floor(sec / 60)
-      const s = Math.floor(sec % 60)
-      return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
+      const s = sec - m * 60
+      let secStr = s.toFixed(2)
+      if (secStr === "60.00") return `${String(m + 1).padStart(2, "0")}:00.00`
+      const [si, sf] = secStr.split(".")
+      return `${String(m).padStart(2, "0")}:${String(si).padStart(2, "0")}.${sf}`
     }
     return formatSeconds(sec)
   }

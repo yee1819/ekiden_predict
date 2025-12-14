@@ -155,8 +155,11 @@ export default function RankPage() {
         if (!sec || sec <= 0) return "—"
         if (kind === "half" || kind === "full") return formatSeconds(sec)
         const m = Math.floor(sec / 60)
-        const s = Math.floor(sec % 60)
-        return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`
+        const s = sec - m * 60
+        let secStr = s.toFixed(2)
+        if (secStr === "60.00") return `${String(m + 1).padStart(2, "0")}:00.00`
+        const [si, sf] = secStr.split(".")
+        return `${String(m).padStart(2, "0")}:${String(si).padStart(2, "0")}.${sf}`
     }
     type Grade = 1 | 2 | 3 | 4
     function calcGrade(entryYear?: number): Grade | undefined {
