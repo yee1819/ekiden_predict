@@ -44,3 +44,8 @@ next-env.d.ts
 
 mydb_backup_20240202.sql
 ./mydb_backup_20240202.sql
+
+
+
+
+public/data/
