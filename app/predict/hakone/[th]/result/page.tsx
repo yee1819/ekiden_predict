@@ -1,5 +1,5 @@
 "use client"
-import React, { useEffect, useMemo, useState } from "react"
+import React, { useEffect, useMemo, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Select, Tooltip, Modal, Input } from "antd"
 
@@ -23,6 +23,68 @@ export default function ResultPage() {
     const [filterName, setFilterName] = useState<string>("")
     const [ekidenIdToName, setEkidenIdToName] = useState<Record<number, "出雲" | "全日本" | "箱根" | undefined>>({})
     const [predFilter, setPredFilter] = useState<"all" | "withTime" | "withoutTime">("all")
+    const [sortBy, setSortBy] = useState<"likes_desc" | "likes_asc" | "created_desc" | "created_asc">("created_desc")
+    const [likesMap, setLikesMap] = useState<Record<string, number>>({})
+    const [likedSet, setLikedSet] = useState<Set<string>>(new Set())
+    const [popBatchId, setPopBatchId] = useState<string | null>(null)
+
+    async function computeFingerprint(): Promise<string> {
+        try {
+            const ua = navigator.userAgent
+            const lang = navigator.language
+            const screenInfo = `${screen.width}x${screen.height}x${screen.colorDepth}@${window.devicePixelRatio || 1}`
+            const tz = String(new Date().getTimezoneOffset())
+            // Canvas fingerprint
+            const canvas = document.createElement("canvas")
+            canvas.width = 200
+            canvas.height = 50
+            const ctx = canvas.getContext("2d")
+            let canvasSig = ""
+            if (ctx) {
+                ctx.textBaseline = "top"
+                ctx.font = "16px 'Arial'"
+                ctx.fillStyle = "#f60"
+                ctx.fillRect(10, 10, 100, 20)
+                ctx.fillStyle = "#000"
+                ctx.fillText(`${ua.slice(0, 32)}`, 12, 12)
+                canvasSig = canvas.toDataURL()
+            }
+            // WebGL vendor/renderer
+            let webglSig = ""
+            try {
+                const gl = (canvas.getContext("webgl") || canvas.getContext("experimental-webgl")) as WebGLRenderingContext | null
+                if (gl) {
+                    const dbg = gl.getExtension("WEBGL_debug_renderer_info") as any
+                    const vendor = dbg ? gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL) : ""
+                    const renderer = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : ""
+                    webglSig = `${vendor}|${renderer}`
+                }
+            } catch { }
+            // Fonts (best-effort)
+            let fontsSig = ""
+            try {
+                const fonts = (document as any).fonts
+                if (fonts && typeof fonts.size === "number") fontsSig = String(fonts.size)
+            } catch { }
+            const raw = `${ua}|${lang}|${screenInfo}|${tz}|${canvasSig}|${webglSig}|${fontsSig}`
+            const enc = new TextEncoder().encode(raw)
+            const digest = await crypto.subtle.digest("SHA-256", enc)
+            const bytes = Array.from(new Uint8Array(digest))
+            const hex = bytes.map(b => b.toString(16).padStart(2, "0")).join("")
+            try { document.cookie = `hakone_fp=${hex}; path=/; max-age=${60 * 60 * 24 * 365}` } catch { }
+            return hex
+        } catch {
+            return Math.random().toString(36).slice(2)
+        }
+    }
+
+    async function getFingerprintFromCookieOrGen() {
+        try {
+            const m = document.cookie.match(/(?:^|;\s*)hakone_fp=([^;]+)/)
+            if (m && m[1]) return m[1]
+        } catch { }
+        return await computeFingerprint()
+    }
 
     useEffect(() => {
         try {
@@ -70,6 +132,16 @@ export default function ResultPage() {
             const listRes = await fetch(`/api/predict/hakone/list?ekidenThId=${ekidenThId}${paramsStr ? `&${paramsStr}` : ""}`)
             const lst = listRes.ok ? await listRes.json() : null
             setList(lst)
+            try {
+                const teamId = lst?.meta?.teamId
+                if (Number.isFinite(teamId)) {
+                    const likesRes = await fetch(`/api/predict/hakone/likes?ekidenThId=${ekidenThId}&teamId=${teamId}`)
+                    const likeData = likesRes.ok ? await likesRes.json() : { likes: {} }
+                    setLikesMap(likeData?.likes || {})
+                } else {
+                    setLikesMap({})
+                }
+            } catch { setLikesMap({}) }
             try {
                 const ids = Array.from(new Set((lst?.groups ?? []).flatMap((g: any) => g.items.map((it: any) => it.playerId)).filter((id: any) => Number.isFinite(id))))
                 if (ids.length) {
@@ -245,7 +317,7 @@ export default function ResultPage() {
         )
     }
 
-    const schoolOptions = useMemo(() => teams.map((t: any) => ({ value: t.schoolId, label: (schools.find((s: any) => s.id === t.schoolId)?.name ?? String(t.schoolId)) })), [teams, schools])
+    const schoolOptions = useMemo(() => [...teams].reverse().map((t: any) => ({ value: t.schoolId, label: (schools.find((s: any) => s.id === t.schoolId)?.name ?? String(t.schoolId)) })), [teams, schools])
     const filteredGroups = useMemo(() => {
         const gs: { items: any[]; meta: any }[] = list?.groups ?? []
         const q = filterName.trim().toLowerCase()
@@ -254,6 +326,20 @@ export default function ResultPage() {
         else if (predFilter === "withoutTime") base = base.filter(g => !(g.items || []).every((it: any) => typeof it.predictSec === "number"))
         return base
     }, [list, filterName, predFilter])
+
+    const sortedGroups = useMemo(() => {
+        const arr = filteredGroups.slice()
+        if (sortBy === "likes_desc") {
+            arr.sort((a, b) => (likesMap[b.meta?.batchId || ""] || 0) - (likesMap[a.meta?.batchId || ""] || 0))
+        } else if (sortBy === "likes_asc") {
+            arr.sort((a, b) => (likesMap[a.meta?.batchId || ""] || 0) - (likesMap[b.meta?.batchId || ""] || 0))
+        } else if (sortBy === "created_asc") {
+            arr.sort((a, b) => new Date(a.meta?.createdAt || 0).getTime() - new Date(b.meta?.createdAt || 0).getTime())
+        } else {
+            arr.sort((a, b) => new Date(b.meta?.createdAt || 0).getTime() - new Date(a.meta?.createdAt || 0).getTime())
+        }
+        return arr
+    }, [filteredGroups, likesMap, sortBy])
 
     function cyclePredFilter() {
         setPredFilter(prev => prev === "all" ? "withTime" : prev === "withTime" ? "withoutTime" : "all")
@@ -266,6 +352,7 @@ export default function ResultPage() {
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <Select style={{ minWidth: 240 }} value={selectedSchoolId ?? undefined} options={schoolOptions} onChange={(v) => setSelectedSchoolId(v)} placeholder="选择学校" virtual={false} />
                     <Input value={filterName} onChange={e => setFilterName(e.target.value)} allowClear placeholder="筛选昵称" style={{ width: 200 }} />
+                    <Select style={{ width: 160 }} value={sortBy} onChange={(v) => setSortBy(v)} options={[{ value: "likes_desc", label: "按点赞顺序" }, { value: "likes_asc", label: "按点赞倒序" }, { value: "created_desc", label: "按时间倒序" }, { value: "created_asc", label: "按时间顺序" }]} placeholder="排序" virtual={false} />
                     <div>全体预测条数：{totalCount / 10}</div>
                     <div>当前学校预测条数：{teamCount / 10}</div>
                     {/* <button onClick={cyclePredFilter} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6 }}>{predFilter === "all" ? "全部数据" : predFilter === "withTime" ? "预测时间" : "不预测时间"}</button> */}
@@ -283,14 +370,55 @@ export default function ResultPage() {
                 <button onClick={() => setPredFilter("withoutTime")} style={{ padding: "8px 12px", border: "1px solid #ccc", borderRadius: 20, background: predFilter === "withoutTime" ? "#1677ff" : "#fff", color: predFilter === "withoutTime" ? "#fff" : "#000" }}>不预测时间</button>
             </div>
             <div style={{ marginTop: 12, border: "1px solid #ddd", borderRadius: 10, background: "#fff", padding: 12 }}>
-                {filteredGroups.length ? (
+                {sortedGroups.length ? (
                     <div style={{ display: "grid", gap: 20 }}>
-                        {filteredGroups.map((group, gi) => (
+                        {sortedGroups.map((group, gi) => (
                             <div key={gi} style={{ display: "grid", gap: 10 }}>
                                 <div style={{ display: "grid", gridTemplateColumns: "10fr 2fr", gap: 10 }}>
-                                    <div style={{ fontWeight: 700 }}>{group.meta?.name ?? "—"}    </div>
-
-                                    {/* {group.meta?.total ? <div style={{ fontSize: 14, color: "#333" }}>{formatSeconds(group.meta?.total)}</div> : null} */}
+                                    <div style={{ fontWeight: 700, display: "flex", alignItems: "center", gap: 10 }}>
+                                        <span>{group.meta?.name ?? "—"}</span>
+                                        {(() => {
+                                            const bid = group.meta?.batchId as string | null
+                                            const count = bid ? (likesMap[bid] || 0) : 0
+                                            const liked = bid ? likedSet.has(bid) : false
+                                            async function onLike() {
+                                                if (!ekidenThId) return
+                                                const teamId = (list as any)?.meta?.teamId
+                                                const batchId = bid
+                                                if (!Number.isFinite(teamId) || !batchId) return
+                                                const fp = await getFingerprintFromCookieOrGen()
+                                                const res = await fetch(`/api/predict/hakone/likes`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ekidenThId, teamId, batchId, fingerprint: fp }) })
+                                                const data = res.ok ? await res.json() : { ok: false }
+                                                if (data?.ok) {
+                                                    setLikesMap(prev => ({ ...prev, [batchId]: Number(data.count || 0) }))
+                                                    setLikedSet(prev => new Set(prev).add(batchId))
+                                                    setPopBatchId(batchId)
+                                                    setTimeout(() => { setPopBatchId(pid => (pid === batchId ? null : pid)) }, 400)
+                                                }
+                                            }
+                                            return bid ? (
+                                                <button
+                                                    onClick={onLike}
+                                                    style={{
+                                                        display: "inline-flex",
+                                                        alignItems: "center",
+                                                        gap: 6,
+                                                        padding: "4px 10px",
+                                                        border: "1px solid #eee",
+                                                        borderRadius: 20,
+                                                        background: liked ? "#ffe6e6" : "#fff",
+                                                        color: liked ? "#d14" : "#d14",
+                                                        cursor: "pointer",
+                                                        animation: popBatchId === bid ? "heartPop 300ms ease" : undefined,
+                                                    }}
+                                                    aria-label="点赞"
+                                                >
+                                                    <span style={{ fontSize: 16, lineHeight: 1 }}>❤️</span>
+                                                    <span style={{ fontSize: 12 }}>{count}</span>
+                                                </button>
+                                            ) : null
+                                        })()}
+                                    </div>
 
                                     <div style={{ textAlign: "right", color: "#666" }}>{group.meta?.createdAt ? new Date(group.meta.createdAt).toLocaleString() : "—"} <button onClick={() => { setSelectedOpinion(String(group.meta?.opinion || "")); setShowOpinion(true) }} style={{ padding: "4px 8px", border: "1px solid #ccc", borderRadius: 6, marginLeft: 8 }}>查看阵容看法</button></div>
                                 </div>
@@ -396,7 +524,7 @@ export default function ResultPage() {
                                         {/* <div style={{ textAlign: "right", fontWeight: 700 }}>{formatSeconds(group.meta?.returnTotal)}</div> */}
                                     </div>
                                 </div>
-                                {gi < filteredGroups.length - 1 ? (
+                                {gi < sortedGroups.length - 1 ? (
                                     <div style={{ height: 1, background: "#eee", margin: "12px 0" }} />
                                 ) : null}
                             </div>
@@ -418,6 +546,11 @@ export default function ResultPage() {
               @media (max-width: 768px) {
                 .pageHead { flex-wrap: wrap; gap: 8px; }
                 .pageHeadTitle { width: 100%; }
+              }
+              @keyframes heartPop {
+                0% { transform: scale(1); }
+                50% { transform: scale(1.2); }
+                100% { transform: scale(1); }
               }
             `}</style>
         </div>

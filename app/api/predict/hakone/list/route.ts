@@ -76,6 +76,8 @@ export async function GET(req: Request) {
         forwardTotal: sum(forward),
         returnTotal: sum(returnR),
         total: sum(items),
+        batchId: arr.find(x => x.batchId)?.batchId || null,
+        groupKey: key,
       }
       return { items, meta }
     }).sort((a, b) => new Date(b.meta.createdAt || 0).getTime() - new Date(a.meta.createdAt || 0).getTime())

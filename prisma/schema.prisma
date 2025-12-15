@@ -155,6 +155,7 @@ model Ekiden_th {
 
   Ekiden_th_interval Ekiden_th_interval[]
   studentEkidenItems student_ekiden_item[]
+  ekidenPredictLikes Ekiden_Predict_Like[]
 }
 
 /// 每个学生的那个区间的成绩
@@ -212,6 +213,7 @@ model Ekiden_no_team {
 
   Ekiden_Team_Predict Ekiden_Team_Predict[]
   studentEkidenItems  student_ekiden_item[]
+  ekidenPredictLikes  Ekiden_Predict_Like[]
 
   @@unique([schoolId, Ekiden_thId])
   @@index([schoolId])
@@ -256,6 +258,26 @@ model Ekiden_Team_Predict {
   updatedAt            DateTime           @default(now()) @updatedAt
 
   // 允许同队同届同区间多条记录（支持多次预测）
+  @@index([Ekiden_thId])
+  @@index([Ekiden_no_teamId])
+}
+
+/// 预测点赞
+model Ekiden_Predict_Like {
+  id               Int            @id @default(autoincrement())
+  /// 第几届
+  Ekiden_thId      Int
+  Ekiden_th        Ekiden_th      @relation(fields: [Ekiden_thId], references: [id])
+  /// 队伍
+  Ekiden_no_teamId Int
+  Ekiden_no_team   Ekiden_no_team @relation(fields: [Ekiden_no_teamId], references: [id])
+  /// 批次ID（同一批预测的分组标识）
+  batchId          String         @db.VarChar(191)
+  /// 浏览器指纹（伪用户ID），用于防止重复点赞
+  fingerprint      String         @db.VarChar(191)
+  createdAt        DateTime       @default(now())
+
+  @@unique([batchId, fingerprint])
   @@index([Ekiden_thId])
   @@index([Ekiden_no_teamId])
 }
