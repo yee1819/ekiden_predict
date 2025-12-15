@@ -58,11 +58,12 @@ export default function SchoolPBPage() {
                 membersMap[t.id] = memRes.ok ? await memRes.json() : []
             }
             setMembersByTeam(membersMap)
-            const schoolIds = Array.from(new Set(tlist.map((t: any) => t.schoolId)))
+            const schoolIds: number[] = Array.from(new Set(tlist.map((t: any) => Number(t.schoolId))))
             const studentsMap: Record<number, any[]> = {}
             for (const sid of schoolIds) {
                 const stuRes = await fetch(`/api/admin/students?schoolId=${sid}`)
-                studentsMap[sid] = stuRes.ok ? await stuRes.json() : []
+                const data = (stuRes.ok ? await stuRes.json() : []) as any[]
+                studentsMap[sid] = data
             }
             setStudentsBySchool(studentsMap)
         })()

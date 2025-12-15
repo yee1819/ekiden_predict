@@ -103,12 +103,13 @@ export default function StudentPBPage() {
                 membersMap[t.id] = memRes.ok ? await memRes.json() : []
             }
             setMembersByTeam(membersMap)
-            const schoolIds = Array.from(new Set(tlist.map((t: any) => t.schoolId)))
+            const schoolIds: number[] = Array.from(new Set(tlist.map((t: any) => Number(t.schoolId))))
 
             const studentsMap: Record<number, any[]> = {}
             for (const sid of schoolIds) {
                 const stuRes = await fetch(`/api/admin/students?schoolId=${sid}`)
-                studentsMap[sid] = stuRes.ok ? await stuRes.json() : []
+                const data = (stuRes.ok ? await stuRes.json() : []) as any[]
+                studentsMap[sid] = data
             }
             setStudentsBySchool(studentsMap)
             const ids = Array.from(new Set(Object.values(membersMap).flat().map((m: any) => m.studentId).filter(Boolean)))
@@ -241,7 +242,7 @@ export default function StudentPBPage() {
         )
     }
 
-    function List({ kind, title, sectionRef }: { kind: "5000" | "10000" | "half"; title: string; sectionRef: React.RefObject<HTMLDivElement> }) {
+    function List({ kind, title, sectionRef }: { kind: "5000" | "10000" | "half"; title: string; sectionRef: React.MutableRefObject<HTMLDivElement | null> }) {
         const rowsBase = rowsFor(kind)
         const rank = useMemo(() => rankMap(kind), [membersByTeam, studentsBySchool, kind])
         const rows = filterSchoolId ? rowsBase.filter(r => r.schoolId === filterSchoolId) : rowsBase
