@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import "antd/dist/reset.css";
+import FirstVisitNotice from "@/app/components/FirstVisitNotice";
 
 const appSans = localFont({
   src: [
@@ -47,6 +48,7 @@ export default function RootLayout({
       <body className={
         `${appSans.className} 
         ${appMono.variable} antialiased`}>
+        <FirstVisitNotice />
         {children}
       </body>
     </html>
