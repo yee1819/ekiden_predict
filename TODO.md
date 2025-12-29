@@ -17,3 +17,27 @@
 scp kirari@192.168.202.129:/home/kirari/Projects/ekiden_predict/.next.zip E:\
 
 scp kirari@192.168.202.129:/home/kirari/Projects/ekiden_predict/next-build-*.tar.gz  E:/
+
+
+
+打包流程
+
+本地linux
+
+tar -czf next-build-$(date +%s).tar.gz .next
+
+本地：
+
+scp kirari@192.168.202.129:/home/kirari/Projects/ekiden_predict/next-build-*.tar.gz  E:/
+
+上传后：
+
+rm -rf .next
+tar -xzf next-*.tar.gz
+
+
+
+
+出现连接池错误时
+
+systemctl restart mysql

@@ -10,7 +10,11 @@ export async function GET(req: Request) {
   const where: any = {}
   if (teamId) where.Ekiden_no_teamId = Number(teamId)
   if (thId) where.Ekiden_thId = Number(thId)
-  const items = await prisma.ekiden_Starter_List.findMany({ where, include: { Ekiden_th_interval: { include: { ekiden_interval: true } }, student: true }, orderBy: { id: "desc" } })
+  const mdl: any = (prisma as any).ekiden_Starter_List
+  if (!mdl || typeof mdl.findMany !== "function") {
+    return NextResponse.json({ error: "PrismaClient未包含Ekiden_Starter_List，请先生成客户端并同步数据库：npm run postinstall、npm run db:push（或 prisma generate / prisma migrate:deploy）" }, { status: 500 })
+  }
+  const items = await mdl.findMany({ where, include: { Ekiden_th_interval: { include: { ekiden_interval: true } }, student: true }, orderBy: { id: "desc" } })
   const shaped = items.map((i: any) => ({
     id: i.id,
     studentId: i.studentId,
@@ -37,7 +41,7 @@ export async function POST(req: Request) {
   if (!student) return NextResponse.json({ error: "student not found" }, { status: 400 })
   if (student.schoolId !== team.schoolId) return NextResponse.json({ error: "student not in team school" }, { status: 400 })
   try {
-    const item = await prisma.ekiden_Starter_List.upsert({
+    const item = await mdl.upsert({
       where: { Ekiden_th_intervalId_Ekiden_no_teamId: { Ekiden_th_intervalId: Number(data.Ekiden_th_intervalId), Ekiden_no_teamId: team.id } },
       update: { studentId: student.id },
       create: { Ekiden_th_intervalId: Number(data.Ekiden_th_intervalId), Ekiden_no_teamId: team.id, Ekiden_thId: th.id, studentId: student.id }
@@ -57,13 +61,13 @@ export async function DELETE(req: Request) {
   const thIdParam = searchParams.get("Ekiden_thId")
   if (idParam) {
     const id = Number(idParam)
-    await prisma.ekiden_Starter_List.delete({ where: { id } })
+    await mdl.delete({ where: { id } })
     return NextResponse.json({ ok: true })
   }
   if (teamIdParam) {
     const where: any = { Ekiden_no_teamId: Number(teamIdParam) }
     if (thIdParam) where.Ekiden_thId = Number(thIdParam)
-    await prisma.ekiden_Starter_List.deleteMany({ where })
+    await mdl.deleteMany({ where })
     return NextResponse.json({ ok: true })
   }
   return NextResponse.json({ error: "missing id or team filter" }, { status: 400 })

@@ -28,6 +28,7 @@ export default function ResultPage() {
     const [likesMap, setLikesMap] = useState<Record<string, number>>({})
     const [likedSet, setLikedSet] = useState<Set<string>>(new Set())
     const [popBatchId, setPopBatchId] = useState<string | null>(null)
+    const [countsBySchool, setCountsBySchool] = useState<Record<number, number>>({})
 
     async function computeFingerprint(): Promise<string> {
         try {
@@ -315,7 +316,21 @@ export default function ResultPage() {
         )
     }
 
-    const schoolOptions = useMemo(() => [...teams].reverse().map((t: any) => ({ value: t.schoolId, label: (schools.find((s: any) => s.id === t.schoolId)?.name ?? String(t.schoolId)) })), [teams, schools])
+    const schoolSelectOptions = useMemo(() => {
+        return [...teams].reverse().map((t: any) => {
+            const name = schools.find((s: any) => s.id === t.schoolId)?.name ?? String(t.schoolId)
+            const cnt = countsBySchool[t.schoolId] || 0
+            return {
+                value: t.schoolId,
+                label: (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
+                        <span style={{ width: "6ch", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{cnt / 10}</span>
+                    </div>
+                )
+            }
+        })
+    }, [teams, schools, countsBySchool])
     const filteredGroups = useMemo(() => {
         const gs: { items: any[]; meta: any }[] = list?.groups ?? []
         const q = filterName.trim().toLowerCase()
@@ -339,6 +354,24 @@ export default function ResultPage() {
         return arr
     }, [filteredGroups, likesMap, sortBy])
 
+    useEffect(() => {
+        ; (async () => {
+            if (!ekidenThId) return
+            const list = teams
+            if (!list.length) { setCountsBySchool({}); return }
+            try {
+                const entries = await Promise.all(list.map(async (t: any) => {
+                    try {
+                        const res = await fetch(`/api/predict/hakone/count?ekidenThId=${ekidenThId}&schoolId=${t.schoolId}`)
+                        const j = res.ok ? await res.json() : {}
+                        return [t.schoolId, Number(j?.count || 0)] as [number, number]
+                    } catch { return [t.schoolId, 0] as [number, number] }
+                }))
+                setCountsBySchool(Object.fromEntries(entries))
+            } catch { setCountsBySchool({}) }
+        })()
+    }, [ekidenThId, teams])
+
     function cyclePredFilter() {
         setPredFilter(prev => prev === "all" ? "withTime" : prev === "withTime" ? "withoutTime" : "all")
     }
@@ -348,7 +381,7 @@ export default function ResultPage() {
             <div className="pageHead" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <h1 className="pageHeadTitle" style={{ fontSize: 20 }}>{`第${params?.th ?? ""}回箱根驿传 预测结果`}</h1>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <Select style={{ minWidth: 240 }} value={selectedSchoolId ?? undefined} options={schoolOptions} onChange={(v) => setSelectedSchoolId(v)} placeholder="选择学校" virtual={false} />
+                    <Select style={{ minWidth: 240 }} value={selectedSchoolId ?? undefined} options={schoolSelectOptions} onChange={(v) => setSelectedSchoolId(v)} placeholder="选择学校" virtual={false} />
                     <Input value={filterName} onChange={e => setFilterName(e.target.value)} allowClear placeholder="筛选昵称" style={{ width: 200 }} />
                     <Select style={{ width: 160 }} value={sortBy} onChange={(v) => setSortBy(v)} options={[{ value: "likes_desc", label: "按点赞顺序" }, { value: "likes_asc", label: "按点赞倒序" }, { value: "created_desc", label: "按时间倒序" }, { value: "created_asc", label: "按时间顺序" }]} placeholder="排序" virtual={false} />
                     <div>全体预测条数：{totalCount / 10}</div>
@@ -435,12 +468,18 @@ export default function ResultPage() {
                                                             {compact ? (
                                                                 <>
                                                                     <div style={{ fontSize: 16, fontWeight: 800 }}>{it.slot}区 {slotDistances[it.slot]}km</div>
-                                                                    <div style={{ fontSize: 20, fontWeight: 900, marginTop: 6 }}>{it.playerName ?? "—"}</div>
+                                                                    <div style={{ fontSize: 20, fontWeight: 900, marginTop: 6 }}>
+                                                                        {it.playerName ?? "—"}
+                                                                        <span style={{ fontSize: 12, fontWeight: 400, marginLeft: 6 }}>{gradeText(calcGrade((it as any)?.student?.entryYear ?? undefined))}</span>
+                                                                    </div>
                                                                     <div style={{ fontSize: 10, color: "#555", fontWeight: 500, marginTop: 4 }}>5000 {formatPBText((scores as any)?.score5000m, "5000")} <br />10000 {formatPBText((scores as any)?.score10000m, "10000")}<br /> 半马 {formatPBText((scores as any)?.scoreHalf, "half")}</div>
                                                                 </>
                                                             ) : (
                                                                 <div style={{ position: "absolute", top: 6, right: 10, textAlign: "right" }}>
-                                                                    <div style={{ fontSize: 24, fontWeight: 900 }}>{it.playerName ?? "—"}</div>
+                                                                    <div style={{ fontSize: 24, fontWeight: 900 }}>
+                                                                        {it.playerName ?? "—"}
+                                                                        {/* <span style={{ fontSize: 12, fontWeight: 400, marginLeft: 6 }}>{gradeText(calcGrade((it as any)?.student?.entryYear ?? undefined))}</span> */}
+                                                                    </div>
                                                                     {/* <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>5000 {formatPBText((scores as any)?.score5000m, "5000")}</div>
                                                                     <div style={{ fontSize: 12, color: "#555" }}>10000 {formatPBText((scores as any)?.score10000m, "10000")}</div>
                                                                     <div style={{ fontSize: 12, color: "#555" }}>半马 {formatPBText((scores as any)?.scoreHalf, "half")}</div> */}
@@ -486,12 +525,18 @@ export default function ResultPage() {
                                                             {compact ? (
                                                                 <>
                                                                     <div style={{ fontSize: 16, fontWeight: 800 }}>{it.slot}区 {slotDistances[it.slot]}km</div>
-                                                                    <div style={{ fontSize: 20, fontWeight: 900, marginTop: 6 }}>{it.playerName ?? "—"}</div>
+                                                                    <div style={{ fontSize: 20, fontWeight: 900, marginTop: 6 }}>
+                                                                        {it.playerName ?? "—"}
+                                                                        <span style={{ fontSize: 12, fontWeight: 400, marginLeft: 6 }}>{gradeText(calcGrade((it as any)?.student?.entryYear ?? undefined))}</span>
+                                                                    </div>
                                                                     <div style={{ fontSize: 10, color: "#555", fontWeight: 500, marginTop: 4 }}>5000 {formatPBText((scores as any)?.score5000m, "5000")} <br /> 10000 {formatPBText((scores as any)?.score10000m, "10000")} <br /> 半马 {formatPBText((scores as any)?.scoreHalf, "half")}</div>
                                                                 </>
                                                             ) : (
                                                                 <div style={{ position: "absolute", top: 6, right: 10, textAlign: "right" }}>
-                                                                    <div style={{ fontSize: 24, fontWeight: 900 }}>{it.playerName ?? "—"}</div>
+                                                                    <div style={{ fontSize: 24, fontWeight: 900 }}>
+                                                                        {it.playerName ?? "—"}
+                                                                        {/* <span style={{ fontSize: 12, fontWeight: 400, marginLeft: 6 }}>{gradeText(calcGrade((it as any)?.student?.entryYear ?? undefined))}</span> */}
+                                                                    </div>
                                                                     {/* <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>5000 {formatPBText((scores as any)?.score5000m, "5000")}</div>
                                                                     <div style={{ fontSize: 12, color: "#555" }}>10000 {formatPBText((scores as any)?.score10000m, "10000")}</div>
                                                                     <div style={{ fontSize: 12, color: "#555" }}>半马 {formatPBText((scores as any)?.scoreHalf, "half")}</div> */}

@@ -62,7 +62,7 @@ export async function GET(req: Request) {
         items,
         meta: {
           name: s.userName || "—",
-          createdAt: s.updatedAt || s.createdAt,
+          createdAt: s.createdAt,
           opinion: s.opinion || null,
           batchId: s.batchId || null,
           likeCount: s.batchId ? (likeCountByBatch[s.batchId] || 0) : 0,

@@ -1,7 +1,7 @@
 "use client"
 import React, { useEffect, useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { Tooltip, Input, Spin } from "antd"
+import { Tooltip, Input, Spin, Select } from "antd"
 import { fetchPublicOrApi } from "@/app/lib/public-cache"
 
 function formatPBText(v: number | null | undefined, kind: "5000" | "10000" | "half") {
@@ -35,6 +35,7 @@ export default function FinalPredictSummaryPage() {
   const [totalCount, setTotalCount] = useState<number>(0)
   const [teamCount, setTeamCount] = useState<number>(0)
   const [filterName, setFilterName] = useState<string>("")
+  const [countsBySchool, setCountsBySchool] = useState<Record<number, number>>({})
   const [loading, setLoading] = useState<boolean>(false)
 
   async function computeFingerprint(): Promise<string> {
@@ -101,6 +102,36 @@ export default function FinalPredictSummaryPage() {
     const allowed = new Set(teams.map((t: any) => t.schoolId))
     return schools.filter((s: any) => allowed.has(s.id))
   }, [schools, teams])
+
+  const schoolSelectOptions = useMemo(() => {
+    return filteredSchools.map((s: any) => ({
+      value: s.id,
+      label: (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
+          <span style={{ width: "6ch", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{countsBySchool[s.id] || 0}</span>
+        </div>
+      )
+    }))
+  }, [filteredSchools, countsBySchool])
+
+  useEffect(() => {
+    ; (async () => {
+      if (!ekidenThId) return
+      const list = filteredSchools
+      if (!list.length) { setCountsBySchool({}); return }
+      try {
+        const entries = await Promise.all(list.map(async (s: any) => {
+          try {
+            const res = await fetch(`/api/predict/hakone/final/count?ekidenThId=${ekidenThId}&schoolId=${s.id}`)
+            const j = res.ok ? await res.json() : {}
+            return [s.id, Number(j?.count || 0)] as [number, number]
+          } catch { return [s.id, 0] as [number, number] }
+        }))
+        setCountsBySchool(Object.fromEntries(entries))
+      } catch { setCountsBySchool({}) }
+    })()
+  }, [ekidenThId, filteredSchools])
 
   useEffect(() => {
     ; (async () => {
@@ -264,7 +295,7 @@ export default function FinalPredictSummaryPage() {
     )
   }
 
-  return (
+  return (<>
     <div style={{ padding: 16, maxWidth: 1200, margin: "0 auto" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <h1 style={{ fontSize: 18, fontWeight: 700 }}>{`第${params?.th ?? ""}回箱根驿传 最终首发汇总`}</h1>
@@ -275,16 +306,22 @@ export default function FinalPredictSummaryPage() {
       <div style={{ marginTop: 12 }}>
         <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
           <span style={{ fontSize: 14 }}>学校</span>
-          <select value={selectedSchoolId} onChange={e => setSelectedSchoolId(Number(e.target.value))} style={{ padding: 6, border: "1px solid #ccc", borderRadius: 6 }}>
-            {filteredSchools.map((s: any) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
+          <Select value={selectedSchoolId} onChange={(v) => setSelectedSchoolId(v)} options={schoolSelectOptions} placeholder="选择学校" style={{ minWidth: 220 }} />
           <Input value={filterName} onChange={e => setFilterName(e.target.value)} allowClear placeholder="筛选昵称" style={{ width: 200 }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 8 }}>
+            <span style={{ fontSize: 14 }}>排序</span>
+            <select value={sortBy} onChange={e => setSortBy(e.target.value as any)} style={{ padding: 6, border: "1px solid #ccc", borderRadius: 6 }}>
+              <option value="created_desc">创建时间降序</option>
+              <option value="created_asc">创建时间升序</option>
+              <option value="likes_desc">点赞降序</option>
+              <option value="likes_asc">点赞升序</option>
+            </select>
+          </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginLeft: 8, fontSize: 12 }}>
             <div>全体预测条数：{(totalCount) || 0}</div>
             <div>当前学校预测条数：{(teamCount) || 0}</div>
           </div>
+
         </div>
         <Spin spinning={loading} tip="加载中...">
           <div style={{ display: "grid", gap: 12 }}>
@@ -328,14 +365,22 @@ export default function FinalPredictSummaryPage() {
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 6 }}>
                   {group.items.slice(0, 5).map((it: any) => {
                     const s = it.student || {}
+                    console.log(it)
                     return (
-                      <div key={`f-${it.slot}`} style={{ border: "1px solid #ddd", borderRadius: 8, padding: 10, background: it.isSub ? "#fff7e6" : undefined, position: "relative" }}>
-                        {it.isSub ? (<div style={{ position: "absolute", top: 6, right: 6, background: "#fa541c", color: "#fff", borderRadius: 6, fontSize: 12, lineHeight: 1, padding: "2px 6px" }}>更换</div>) : null}
-                        <div style={{ fontSize: 16, fontWeight: 800 }}>{it.slot}区</div>
+                      <div key={`f-${it.slot}`}>
                         <Tooltip title={<PlayerTooltip student={it.student || null} playerId={it.playerId} />} color="#fff" styles={{ container: { border: "2px solid #000000", minWidth: 400 } }}>
-                          <div style={{ fontSize: 20, fontWeight: 900, marginTop: 6 }}>{it.playerName ?? "—"}</div>
+                          <div style={{ border: "1px solid #ddd", borderRadius: 8, padding: 10, background: it.isSub ? "#fff7e6" : undefined, position: "relative" }}>
+                            {it.isSub ? (<div style={{ position: "absolute", top: 6, right: 6, background: "#fa541c", color: "#fff", borderRadius: 6, fontSize: 12, lineHeight: 1, padding: "2px 6px" }}>更换</div>) : null}
+                            <div style={{ fontSize: 16, fontWeight: 800 }}>{it.slot}区</div>
+
+                            <div style={{ fontSize: 20, fontWeight: 900, marginTop: 6 }}>{it.playerName ?? "—"}
+                              <span style={{ fontSize: 12, fontWeight: 400, marginLeft: 6 }}>{gradeText(calcGrade((s as any)?.entryYear))}</span>
+                            </div>
+
+
+                            <div style={{ fontSize: 10, color: "#555", fontWeight: 500, marginTop: 4 }}>5000 {formatPBText((s as any)?.score5000m, "5000")} <br /> 10000 {formatPBText((s as any)?.score10000m, "10000")} <br /> 半马 {formatPBText((s as any)?.scoreHalf, "half")}</div>
+                          </div>
                         </Tooltip>
-                        <div style={{ fontSize: 10, color: "#555", fontWeight: 500, marginTop: 4 }}>5000 {formatPBText((s as any)?.score5000m, "5000")} <br /> 10000 {formatPBText((s as any)?.score10000m, "10000")} <br /> 半马 {formatPBText((s as any)?.scoreHalf, "half")}</div>
                       </div>
                     )
                   })}
@@ -348,7 +393,7 @@ export default function FinalPredictSummaryPage() {
                         {it.isSub ? (<div style={{ position: "absolute", top: 6, right: 6, background: "#fa541c", color: "#fff", borderRadius: 6, fontSize: 12, lineHeight: 1, padding: "2px 6px" }}>更换</div>) : null}
                         <div style={{ fontSize: 16, fontWeight: 800 }}>{it.slot}区</div>
                         <Tooltip title={<PlayerTooltip student={it.student || null} playerId={it.playerId} />} color="#fff" styles={{ container: { border: "2px solid #000000", minWidth: 400 } }}>
-                          <div style={{ fontSize: 20, fontWeight: 900, marginTop: 6 }}>{it.playerName ?? "—"}</div>
+                          <div style={{ fontSize: 20, fontWeight: 900, marginTop: 6 }}>{it.playerName ?? "—"} <span style={{ fontSize: 12, fontWeight: 400, marginLeft: 6 }}>{gradeText(calcGrade((s as any)?.entryYear))}</span></div>
                         </Tooltip>
                         <div style={{ fontSize: 10, color: "#555", fontWeight: 500, marginTop: 4 }}>5000 {formatPBText((s as any)?.score5000m, "5000")} <br /> 10000 {formatPBText((s as any)?.score10000m, "10000")} <br /> 半马 {formatPBText((s as any)?.scoreHalf, "half")}</div>
                       </div>
@@ -363,5 +408,9 @@ export default function FinalPredictSummaryPage() {
         </Spin>
       </div>
     </div>
+    <div style={{ position: "fixed", right: 24, bottom: 80, zIndex: 1000 }}>
+      <button onClick={() => { try { window.scrollTo({ top: 0, behavior: "smooth" }) } catch { window.scrollTo(0, 0) } }} style={{ padding: "8px 12px", border: "1px solid #ccc", borderRadius: 20, background: "#fff" }}>回到顶部</button>
+    </div>
+  </>
   )
 }
