@@ -14,8 +14,7 @@ export default function SchoolsAdminPage() {
   const [openEdit, setOpenEdit] = useState(false)
   async function load() {
     const res = await fetch("/api/admin/schools")
-    const data = await res.json()
-    setItems(data)
+    setItems(await res.json())
   }
   useEffect(() => { load() }, [])
   async function create() {

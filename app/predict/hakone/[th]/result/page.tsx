@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Select, Tooltip, Modal, Input } from "antd"
+import { fetchPublicOrApi } from "@/app/lib/public-cache"
 
 
 
@@ -98,20 +99,16 @@ export default function ResultPage() {
 
     useEffect(() => {
         ; (async () => {
-            const ekidensRes = await fetch("/api/admin/ekidens")
-            const ekidensData = ekidensRes.ok ? await ekidensRes.json() : []
+            const ekidensData = await fetchPublicOrApi<any[]>("public-ekidens", "all", "/api/ekidens")
             const idNameMap: Record<number, "出雲" | "全日本" | "箱根" | undefined> = {}
             ekidensData.forEach((e: any) => { if (e?.name === "出雲" || e?.name === "全日本" || e?.name === "箱根") idNameMap[e.id] = e.name })
             setEkidenIdToName(idNameMap)
             const hakone = ekidensData.find((e: any) => e.name === "箱根")
             if (!hakone) return
-            const edRes = await fetch(`/api/admin/editions?ekidenId=${hakone.id}`)
-            const eds = edRes.ok ? await edRes.json() : []
+            const eds = await fetchPublicOrApi<any[]>("public-editions", Number(hakone.id), `/api/editions?ekidenId=${hakone.id}`)
             const ed = eds.find((x: any) => String(x.ekiden_th) === String(params?.th ?? ""))
             if (ed) { setEkidenThId(ed.id); setEventYear(Number(ed.year)) }
-            const schoolsRes = await fetch("/api/admin/schools")
-            const schoolsData = schoolsRes.ok ? await schoolsRes.json() : []
-            setSchools(schoolsData)
+            setSchools(await fetchPublicOrApi<any[]>("public-schools", "all", "/api/schools"))
         })()
     }, [params?.th])
 
@@ -121,7 +118,7 @@ export default function ResultPage() {
             const totalRes = await fetch(`/api/predict/hakone/count?ekidenThId=${ekidenThId}`)
             const total = totalRes.ok ? await totalRes.json() : {}
             setTotalCount(Number(total?.count || 0))
-            const teamsRes = await fetch(`/api/admin/teams?Ekiden_thId=${ekidenThId}`)
+            const teamsRes = await fetch(`/api/teams?Ekiden_thId=${ekidenThId}`)
             const tlist = teamsRes.ok ? await teamsRes.json() : []
             setTeams(tlist)
             const schoolId = selectedSchoolId ?? (schoolName ? (schools.find((s: any) => s.name === schoolName)?.id) : undefined)
@@ -143,10 +140,11 @@ export default function ResultPage() {
                 }
             } catch { setLikesMap({}) }
             try {
-                const ids = Array.from(new Set((lst?.groups ?? []).flatMap((g: any) => g.items.map((it: any) => it.playerId)).filter((id: any) => Number.isFinite(id))))
+                const idRaw = (lst?.groups ?? []).flatMap((g: any) => g.items.map((it: any) => it.playerId))
+                const ids = Array.from(new Set(idRaw)).filter((id): id is number => Number.isFinite(id as number))
                 if (ids.length) {
-                    const entRes = await fetch(`/api/admin/student-entries?studentIds=${ids.join(',')}`)
-                    const ent = entRes.ok ? await entRes.json() : []
+                    const sortedIds = ids.slice().sort((a, b) => a - b)
+                    const ent = await fetchPublicOrApi<any[]>("public-student-entries", sortedIds, `/api/student-entries?studentIds=${ids.join(',')}`)
                     const map: Record<number, any[]> = {}
                     for (const e of ent) {
                         if (!map[e.studentId]) map[e.studentId] = []
@@ -281,7 +279,7 @@ export default function ResultPage() {
     function PlayerTooltip({ student, playerId }: { student: { name?: string | null; score5000m?: string | number | null; score10000m?: string | number | null; scoreHalf?: string | number | null; collegePB?: string | number | null; entryYear?: number | null } | null, playerId?: number | null }) {
         const s = student || null
         return (
-            <div style={{ flex: "0 0 280px", border: "1px solid #ddd", borderRadius: 10, background: "#fff", padding: 10 }}>
+            <div style={{ flex: "0 0 280px", border: "1px solid #ddd", borderRadius: 10, background: "rgba(var(--panel-bg-rgb), var(--panel-opacity))", padding: 10 }}>
                 <div style={{ marginBottom: 6, fontWeight: 600, fontSize: 13 }}>队员详情</div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 6, marginBottom: 8, fontSize: 12 }}>
                     <div>姓名：{s?.name ?? "—"}</div>
@@ -369,7 +367,7 @@ export default function ResultPage() {
                 <button onClick={() => setPredFilter("withTime")} style={{ padding: "8px 12px", border: "1px solid #ccc", borderRadius: 20, background: predFilter === "withTime" ? "#1677ff" : "#fff", color: predFilter === "withTime" ? "#fff" : "#000" }}>预测时间</button>
                 <button onClick={() => setPredFilter("withoutTime")} style={{ padding: "8px 12px", border: "1px solid #ccc", borderRadius: 20, background: predFilter === "withoutTime" ? "#1677ff" : "#fff", color: predFilter === "withoutTime" ? "#fff" : "#000" }}>不预测时间</button>
             </div>
-            <div style={{ marginTop: 12, border: "1px solid #ddd", borderRadius: 10, background: "#fff", padding: 12 }}>
+            <div style={{ marginTop: 12, border: "1px solid #ddd", borderRadius: 10, background: "rgba(var(--panel-bg-rgb), var(--panel-opacity))", padding: 12 }}>
                 {sortedGroups.length ? (
                     <div style={{ display: "grid", gap: 20 }}>
                         {sortedGroups.map((group, gi) => (
@@ -433,7 +431,7 @@ export default function ResultPage() {
                                                 cum = cum + (sec ?? 0)
                                                 return (
                                                     <Tooltip key={`f-${it.slot}`} title={<PlayerTooltip student={it.student} playerId={it.playerId} />} styles={{ container: { border: "1px solid #ddd", minWidth: 400 } }} color="#fff">
-                                                        <div style={{ border: "1px solid #ddd", borderRadius: 8, padding: 10, background: "#fff", position: "relative" }}>
+                                                        <div style={{ border: "1px solid #ddd", borderRadius: 8, padding: 10, background: "rgba(var(--panel-bg-rgb), var(--panel-opacity))", position: "relative" }}>
                                                             {compact ? (
                                                                 <>
                                                                     <div style={{ fontSize: 16, fontWeight: 800 }}>{it.slot}区 {slotDistances[it.slot]}km</div>
@@ -484,7 +482,7 @@ export default function ResultPage() {
 
                                                 return (
                                                     <Tooltip key={`r-${it.slot}`} title={<PlayerTooltip student={it.student} playerId={it.playerId} />} styles={{ container: { border: "1px solid #ddd", minWidth: 400 } }} color="#fff">
-                                                        <div style={{ border: "1px solid #ddd", borderRadius: 8, padding: 10, background: "#fff", position: "relative" }}>
+                                                        <div style={{ border: "1px solid #ddd", borderRadius: 8, padding: 10, background: "rgba(var(--panel-bg-rgb), var(--panel-opacity))", position: "relative" }}>
                                                             {compact ? (
                                                                 <>
                                                                     <div style={{ fontSize: 16, fontWeight: 800 }}>{it.slot}区 {slotDistances[it.slot]}km</div>

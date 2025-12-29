@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation"
 import { Input, Tooltip, Modal, message } from "antd"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
+import { fetchPublicOrApi } from "@/app/lib/public-cache"
 
 type EkidenType = "出雲" | "全日本" | "箱根"
 type Grade = 1 | 2 | 3 | 4
@@ -53,12 +54,10 @@ export default function SummaryPage() {
 
   useEffect(() => {
     ; (async () => {
-      const ekidensRes = await fetch("/api/admin/ekidens")
-      const ekidensData = await ekidensRes.json()
+      const ekidensData = await fetchPublicOrApi<any[]>("public-ekidens", "all", "/api/ekidens")
       const hakone = ekidensData.find((e: any) => e.name === "箱根")
       if (!hakone) return
-      const edRes = await fetch(`/api/admin/editions?ekidenId=${hakone.id}`)
-      const eds = await edRes.json()
+      const eds = await fetchPublicOrApi<any[]>("public-editions", Number(hakone.id), `/api/editions?ekidenId=${hakone.id}`)
       const ed = eds.find((x: any) => String(x.ekiden_th) === String(params?.th ?? ""))
       if (ed) setEkidenThId(ed.id)
     })()
@@ -371,7 +370,7 @@ export default function SummaryPage() {
                   const compact = !allHavePredict
                   return (
                     <Tooltip key={`f-${it.slot}`} title={<EntriesTooltip playerId={it.playerId} />} color="#fff" styles={{ container: { border: "2px solid #020202", minWidth: 400 } }}>
-                      <div style={{ border: "1px solid #ddd", borderRadius: 8, padding: 10, background: "#fff", position: "relative" }}>
+                      <div style={{ border: "1px solid #ddd", borderRadius: 8, padding: 10, background: "rgba(var(--panel-bg-rgb), var(--panel-opacity))", position: "relative" }}>
                         {compact ? (
                           <>
                             <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
@@ -428,7 +427,7 @@ export default function SummaryPage() {
                   const compact = !allHavePredict
                   return (
                     <Tooltip key={`r-${it.slot}`} title={<EntriesTooltip playerId={it.playerId} />} color="#fff" styles={{ container: { border: "2px solid #000000", minWidth: 400 } }}>
-                      <div style={{ border: "1px solid #ddd", borderRadius: 8, padding: 10, background: "#fff", position: "relative" }}>
+                      <div style={{ border: "1px solid #ddd", borderRadius: 8, padding: 10, background: "rgba(var(--panel-bg-rgb), var(--panel-opacity))", position: "relative" }}>
                         {compact ? (
                           <>
                             <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>

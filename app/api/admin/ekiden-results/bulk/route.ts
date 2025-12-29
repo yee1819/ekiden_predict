@@ -71,14 +71,22 @@ export async function PATCH(req: Request) {
     if (s.schoolId !== team.schoolId) return NextResponse.json({ error: `student ${e.studentId} not in team school` }, { status: 400 })
   }
   try {
-    const updated = await prisma.$transaction(entries.map(e => prisma.student_ekiden_item.update({
-      where: { id: Number(e.id) }, data: {
-        score: Number(e.score),
-        rank: Number(e.rank ?? 0),
-        studentId: Number(e.studentId)
-      }
-    })))
-    return NextResponse.json({ updated: updated.length })
+    const batchSize = 50
+    let total = 0
+    for (let i = 0; i < entries.length; i += batchSize) {
+      const batch = entries.slice(i, i + batchSize)
+      const res = await prisma.$transaction(async (tx) => {
+        return Promise.all(batch.map(e => tx.student_ekiden_item.update({
+          where: { id: Number(e.id) }, data: {
+            score: Number(e.score),
+            rank: Number(e.rank ?? 0),
+            studentId: Number(e.studentId)
+          }
+        })))
+      }, { timeout: 30000 })
+      total += res.length
+    }
+    return NextResponse.json({ updated: total })
   } catch (err: any) {
     return NextResponse.json({ error: err?.message ?? "bulk update failed" }, { status: 400 })
   }

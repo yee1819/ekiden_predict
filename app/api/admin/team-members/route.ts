@@ -1,18 +1,14 @@
 import { NextResponse } from "next/server"
 import { prisma } from "@/app/lib/prisma"
-import * as cache from "@/app/lib/cache"
 import { headers } from "next/headers"
 import { auth } from "@/app/lib/auth"
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const teamId = searchParams.get("ekiden_no_teamId")
   const where = teamId ? { ekiden_no_teamId: Number(teamId) } : {}
-  const name = cache.key("admin-team-members", teamId ? Number(teamId) : "all")
-  const hit = await cache.read<any[]>(name)
-  if (hit) return NextResponse.json(hit)
-  const items = await prisma.ekiden_Team_Member.findMany({ where, orderBy: { id: "desc" } })
-  await cache.write(name, items)
-  return NextResponse.json(items)
+  const items = await prisma.ekiden_Team_Member.findMany({ where, include: { student: true }, orderBy: { id: "desc" } })
+  const shaped = items.map((i: any) => ({ id: i.id, ekiden_no_teamId: i.ekiden_no_teamId, studentId: i.studentId, role: i.role, studentName: i.student?.name }))
+  return NextResponse.json(shaped)
 }
 export async function POST(req: Request) {
   const session = await auth.api.getSession({ headers: await headers() })

@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Select, Tooltip } from "antd"
+import { fetchPublicOrApi } from "@/app/lib/public-cache"
 
 export default function RankPage() {
     const params = useParams() as { th?: string }
@@ -27,8 +28,7 @@ export default function RankPage() {
                 if (d?.school) {
                     const nm = String(d.school)
                         ; (async () => {
-                            const res = await fetch("/api/admin/schools")
-                            const list = await res.json()
+                            const list = await fetchPublicOrApi<any[]>("public-schools", "all", "/api/schools")
                             setSchools(list)
                             const sch = list.find((s: any) => s.name === nm)
                             if (sch) setSelectedSchoolId(sch.id)
@@ -45,20 +45,17 @@ export default function RankPage() {
 
     useEffect(() => {
         ; (async () => {
-            const ekidensRes = await fetch("/api/admin/ekidens")
-            const ekidensData = await ekidensRes.json()
+            const ekidensData = await fetchPublicOrApi<any[]>("public-ekidens", "all", "/api/ekidens")
             const hakone = ekidensData.find((e: any) => e.name === "箱根")
             if (!hakone) return
-            const edRes = await fetch(`/api/admin/editions?ekidenId=${hakone.id}`)
-            const eds = await edRes.json()
+            const eds = await fetchPublicOrApi<any[]>("public-editions", Number(hakone.id), `/api/editions?ekidenId=${hakone.id}`)
             const ed = eds.find((x: any) => String(x.ekiden_th) === String(params?.th ?? ""))
             if (ed) { setEkidenThId(ed.id); setEventYear(Number(ed.year)) }
             const idNameMap: Record<number, "出雲" | "全日本" | "箱根" | undefined> = {}
             ekidensData.forEach((e: any) => { if (e?.name === "出雲" || e?.name === "全日本" || e?.name === "箱根") idNameMap[e.id] = e.name })
             setEkidenIdToName(idNameMap)
             if (schools.length === 0) {
-                const schoolsRes = await fetch("/api/admin/schools")
-                setSchools(await schoolsRes.json())
+                setSchools(await fetchPublicOrApi<any[]>("public-schools", "all", "/api/schools"))
             }
         })()
     }, [params?.th])
@@ -66,8 +63,7 @@ export default function RankPage() {
     useEffect(() => {
         ; (async () => {
             if (!ekidenThId) return
-            const teamsRes = await fetch(`/api/admin/teams?Ekiden_thId=${ekidenThId}`)
-            const tlist = await teamsRes.json()
+            const tlist = await fetchPublicOrApi<any[]>("public-teams", Number(ekidenThId), `/api/teams?Ekiden_thId=${ekidenThId}`)
             setTeams(tlist)
             if (!selectedSchoolId && tlist.length) {
                 const t0 = tlist[tlist.length - 1]
@@ -81,17 +77,15 @@ export default function RankPage() {
             if (!ekidenThId || !selectedSchoolId) return
             const team = teams.find((t: any) => t.schoolId === selectedSchoolId)
             if (!team) return
-            const memRes = await fetch(`/api/admin/team-members?ekiden_no_teamId=${team.id}`)
-            const mems = await memRes.json()
+            const mems = await fetchPublicOrApi<any[]>("public-team-members", Number(team.id), `/api/team-members?ekiden_no_teamId=${team.id}`)
             setMembers(mems)
-            const stuRes = await fetch(`/api/admin/students?schoolId=${selectedSchoolId}`)
-            const studs = await stuRes.json()
+            const studs = await fetchPublicOrApi<any[]>("public-students", Number(selectedSchoolId), `/api/students?schoolId=${selectedSchoolId}`)
             setStudents(studs)
             try {
                 const idsParam = mems.map((m: any) => m.studentId).filter((id: any) => Number.isFinite(id))
                 if (idsParam.length) {
-                    const entRes = await fetch(`/api/admin/student-entries?studentIds=${idsParam.join(',')}`)
-                    const ent = await entRes.json()
+                    const sortedIds = idsParam.slice().sort((a, b) => a - b)
+                    const ent = await fetchPublicOrApi<any[]>("public-student-entries", sortedIds, `/api/student-entries?studentIds=${idsParam.join(',')}`)
                     const map: Record<number, any[]> = {}
                     for (const e of ent) {
                         if (!map[e.studentId]) map[e.studentId] = []
@@ -264,7 +258,7 @@ export default function RankPage() {
                                 .slice(0, top3Only ? 3 : 16)
                                 .map((row, idx) => (
                                     <React.Fragment key={`${slot}-${row.studentId}-${idx}`}>
-                                        <div style={{ border: "1px solid #eee", borderRadius: 6, padding: isMobile ? "4px 6px" : "6px 8px", textAlign: "center", color: "#666", background: idx === 0 ? "#ffd700" : idx === 1 ? "#c0c0c0" : idx === 2 ? "#cd7f32" : undefined }}>{idx + 1}</div>
+                                        <div style={{ border: "1px solid #eee", borderRadius: 6, padding: isMobile ? "4px 6px" : "6px 8px", textAlign: "center", color: "#666", background: idx === 0 ? "#ffd700" : idx === 1 ? "#c0c0c0" : idx === 2 ? "#cd7f32" : "rgba(var(--panel-bg-rgb), var(--panel-opacity))" }}>{idx + 1}</div>
                                         {(() => {
                                             const stu = students.find((s: any) => s.id === row.studentId)
                                             const shaped = stu ? { name: stu.name, score5000m: stu.score_5000m ?? null, score10000m: stu.score_10000m ?? null, scoreHalf: stu.score_half_marathon ?? null, collegePB: stu.score_college_pb ?? null, entryYear: stu.entryYear ?? null } : null

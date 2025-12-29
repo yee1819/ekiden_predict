@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { Tooltip, Select, Segmented, TimePicker } from "antd"
 import dayjs from "dayjs"
+import { fetchPublicOrApi } from "@/app/lib/public-cache"
 
 type EkidenType = "出雲" | "全日本" | "箱根"
 type Grade = 1 | 2 | 3 | 4
@@ -313,16 +314,13 @@ export default function Page() {
 
     useEffect(() => {
         ; (async () => {
-            const ekidensRes = await fetch("/api/admin/ekidens")
-            const ekidensData = ekidensRes.ok ? await ekidensRes.json() : []
+            const ekidensData = await fetchPublicOrApi<any[]>("public-ekidens", "all", "/api/ekidens")
             setEkidens(ekidensData)
-            const schoolsRes = await fetch("/api/admin/schools")
-            const schoolsData = schoolsRes.ok ? await schoolsRes.json() : []
+            const schoolsData = await fetchPublicOrApi<any[]>("public-schools", "all", "/api/schools")
             setSchools(schoolsData)
             const hakone = ekidensData.find((e: any) => e.name === "箱根")
             if (!hakone) return
-            const edRes = await fetch(`/api/admin/editions?ekidenId=${hakone.id}`)
-            const eds = edRes.ok ? await edRes.json() : []
+            const eds = await fetchPublicOrApi<any[]>("public-editions", Number(hakone.id), `/api/editions?ekidenId=${hakone.id}`)
             setEditions(eds)
             const ed = eds.find((x: any) => String(x.ekiden_th) === String(yearLabel))
             if (ed) { setHakoneThId(ed.id); setEventYear(Number(ed.year)) }
@@ -332,8 +330,7 @@ export default function Page() {
     useEffect(() => {
         ; (async () => {
             if (!hakoneThId) { setTeams([]); return }
-            const res = await fetch(`/api/admin/teams?Ekiden_thId=${hakoneThId}`)
-            const list = res.ok ? await res.json() : []
+            const list = await fetchPublicOrApi<any[]>("public-teams", Number(hakoneThId), `/api/teams?Ekiden_thId=${hakoneThId}`)
             setTeams(list)
             if (list.length > 0) {
                 const qSchoolId = Number(searchParams.get("schoolId"))
@@ -353,19 +350,13 @@ export default function Page() {
             if (!selectedTeamId) { setMembers([]); setStudents([]); setPlayers([]); setTeamResults([]); return }
             const t = teams.find((x: any) => x.id === selectedTeamId)
             if (!t) return
-            const [memsRes, stusRes] = await Promise.all([
-                fetch(`/api/admin/team-members?ekiden_no_teamId=${selectedTeamId}`),
-                fetch(`/api/admin/students?schoolId=${t.schoolId}`)
-            ])
-            const mems = memsRes.ok ? await memsRes.json() : []
-            const stus = stusRes.ok ? await stusRes.json() : []
+            const mems = await fetchPublicOrApi<any[]>("public-team-members", Number(selectedTeamId), `/api/team-members?ekiden_no_teamId=${selectedTeamId}`)
+            const stus = await fetchPublicOrApi<any[]>("public-students", Number(t.schoolId), `/api/students?schoolId=${t.schoolId}`)
             setMembers(mems)
             setStudents(stus)
-            const resR = await fetch(`/api/admin/ekiden-results?ekiden_no_teamId=${selectedTeamId}${hakoneThId ? `&Ekiden_thId=${hakoneThId}` : ""}`)
-            const items = resR.ok ? await resR.json() : []
+            const items = await fetchPublicOrApi<any[]>("public-ekiden-results", { teamId: Number(selectedTeamId), thId: hakoneThId ? Number(hakoneThId) : null }, `/api/ekiden-results?ekiden_no_teamId=${selectedTeamId}${hakoneThId ? `&Ekiden_thId=${hakoneThId}` : ""}`)
             setTeamResults(items)
-            const ekidensRes2 = await fetch("/api/admin/ekidens")
-            const ekidensData = ekidensRes2.ok ? await ekidensRes2.json() : []
+            const ekidensData = await fetchPublicOrApi<any[]>("public-ekidens", "all", "/api/ekidens")
             const nameToId = Object.fromEntries(ekidensData.map((e: any) => [e.name, e.id])) as Record<string, number>
             const map = new Map<number, any>()
             stus.forEach((s: any) => map.set(s.id, s))
@@ -398,14 +389,12 @@ export default function Page() {
                 entriesById.set(sid, list)
             })
             const studentIds = mems.map((m: any) => m.studentId).join(",")
-            const histRes = await fetch(`/api/admin/student-entries?studentIds=${studentIds}`)
-            const hist = await histRes.json()
+            const hist = await fetchPublicOrApi<any[]>("public-student-entries", studentIds.split(",").map(s => Number(s)).filter(n => Number.isFinite(n)).sort((a, b) => a - b), `/api/student-entries?studentIds=${studentIds}`)
             const EID = { HAKONE: nameToId["箱根"], ZENNIHON: nameToId["全日本"], IZUMO: nameToId["出雲"] }
             const presentEkidenIds = Array.from(new Set(hist.map((h: any) => h.ekidenId).filter(Boolean))) as number[]
             const intervalMaps: Record<number, Record<number, string>> = {}
             await Promise.all(presentEkidenIds.map(async (eid) => {
-                const r = await fetch(`/api/admin/intervals?ekidenId=${eid}`)
-                const arr = await r.json()
+                const arr = await fetchPublicOrApi<any[]>("public-intervals", Number(eid), `/api/intervals?ekidenId=${eid}`)
                 intervalMaps[eid] = Object.fromEntries(arr.map((x: any) => [x.id, x.name]))
             }))
             hist.forEach((it: any) => {
@@ -456,6 +445,7 @@ export default function Page() {
                     />
                     <button onClick={() => router.push(`/predict/hakone/${yearLabel}/pb/student`)} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6 }}>选手PB榜</button>
                     <button onClick={() => router.push(`/predict/hakone/${yearLabel}/pb/school`)} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6 }}>学校PB榜</button>
+                    <button onClick={() => router.push(`/predict/hakone/${yearLabel}/finalPredict` + (selectedSchool ? `?schoolId=${selectedSchool.id}` : ""))} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6 }}>最终首发替换</button>
                     <button onClick={togglePredictMode} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6 }}>{predictMode ? "关闭时间" : "预测时间"}</button>
                     <button onClick={resetAll} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6 }}>清空分配</button>
                     <button onClick={onExport} disabled={assignedIds.size !== 10} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6, opacity: assignedIds.size === 10 ? 1 : 0.5 }}>完成分配</button>
@@ -678,7 +668,7 @@ export default function Page() {
                                     )
                                 })}
                             </div>
-                            <div style={{ marginTop: 6, fontSize: 12, border: "1px solid #ddd", borderRadius: 8, padding: 8, background: "#fff" }}>
+                            <div style={{ marginTop: 6, fontSize: 12, border: "1px solid #ddd", borderRadius: 8, padding: 8, background: "rgba(var(--panel-bg-rgb), var(--panel-opacity))" }}>
                                 <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
                                     <div>队伍：{selectedSchool?.name ?? "—"}</div>
                                     <div>名单：{players.length}人</div>

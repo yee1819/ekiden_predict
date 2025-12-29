@@ -32,27 +32,27 @@ export default function EkidenResultsAdminPage() {
   const [rank, setRank] = useState<number | undefined>(undefined)
   const [scoreStr, setScoreStr] = useState<string>("")
   async function loadEditions() {
-    const r = await fetch("/api/admin/editions")
-    setEditions(await r.json())
+    const res = await fetch("/api/admin/editions")
+    setEditions(await res.json())
   }
   async function loadEkidens() {
-    const r = await fetch("/api/admin/ekidens")
-    setEkidens(await r.json())
+    const res = await fetch("/api/admin/ekidens")
+    setEkidens(await res.json())
   }
   async function loadSchools() {
-    const r = await fetch("/api/admin/schools")
-    setSchools(await r.json())
+    const res = await fetch("/api/admin/schools")
+    setSchools(await res.json())
   }
   async function loadStudentsOfSchool(sid?: number) {
     if (!sid) return
-    const r = await fetch(`/api/admin/students?schoolId=${sid}`)
-    const data = await r.json()
+    const res = await fetch(`/api/admin/students?schoolId=${sid}`)
+    const data = await res.json()
     setStudentsBySchool(prev => ({ ...prev, [sid]: data }))
   }
   async function loadTeams() {
     const url = Ekiden_thId ? `/api/admin/teams?Ekiden_thId=${Ekiden_thId}` : "/api/admin/teams"
-    const r = await fetch(url)
-    setTeams(await r.json())
+    const res = await fetch(url)
+    setTeams(await res.json())
   }
   async function loadIntervals() {
     if (!Ekiden_thId) { setThIntervals([]); setBaseIntervals([]); return }
@@ -78,27 +78,27 @@ export default function EkidenResultsAdminPage() {
   }
   async function loadMembers() {
     if (!teamId) { setMembers([]); return }
-    const r = await fetch(`/api/admin/team-members?ekiden_no_teamId=${teamId}`)
-    setMembers(await r.json())
+    const res = await fetch(`/api/admin/team-members?ekiden_no_teamId=${teamId}`)
+    setMembers(await res.json())
   }
   async function loadMembersFor(tid?: number) {
     if (!tid) { setMembers([]); return }
-    const r = await fetch(`/api/admin/team-members?ekiden_no_teamId=${tid}`)
-    setMembers(await r.json())
+    const res = await fetch(`/api/admin/team-members?ekiden_no_teamId=${tid}`)
+    setMembers(await res.json())
   }
   async function loadResults() {
     const params = new URLSearchParams()
     if (Ekiden_thId) params.set("Ekiden_thId", String(Ekiden_thId))
     if (teamId) params.set("ekiden_no_teamId", String(teamId))
-    const r = await fetch(`/api/admin/ekiden-results?${params.toString()}`)
-    setResults(await r.json())
+    const res = await fetch(`/api/admin/ekiden-results?${params.toString()}`)
+    setResults(await res.json())
   }
   async function loadResultsForTeam(tid?: number, thId?: number) {
     const params = new URLSearchParams()
     if (tid) params.set("ekiden_no_teamId", String(tid))
     if (thId) params.set("Ekiden_thId", String(thId))
-    const r = await fetch(`/api/admin/ekiden-results?${params.toString()}`)
-    const data = await r.json()
+    const res = await fetch(`/api/admin/ekiden-results?${params.toString()}`)
+    const data = await res.json()
     setResults(data)
     return data
   }
@@ -120,8 +120,8 @@ export default function EkidenResultsAdminPage() {
     if (!tid) { setStudents([]); return }
     const t = teamsModal.find((x: any) => x.id === tid) ?? teams.find((x: any) => x.id === tid)
     if (t) {
-      const r = await fetch(`/api/admin/students?schoolId=${t.schoolId}`)
-      setStudents(await r.json())
+      const res = await fetch(`/api/admin/students?schoolId=${t.schoolId}`)
+      setStudents(await res.json())
     } else {
       setStudents([])
     }
@@ -149,6 +149,18 @@ export default function EkidenResultsAdminPage() {
   const teamOptionsModal = useMemo(() => teamsModal.map((t: any) => ({ value: t.id, label: `${(schools.find((s: any) => s.id === t.schoolId)?.name ?? t.schoolId)} | 第${editions.find(e => e.id === t.Ekiden_thId)?.ekiden_th ?? ""}回` })), [teamsModal, editions, schools])
   const intervalOptions = useMemo(() => baseIntervals.map((b: any) => ({ value: b.id, label: b.name })), [baseIntervals])
   const memberOptions = useMemo(() => members.map((m: any) => ({ value: m.studentId, label: (students.find((s: any) => s.id === m.studentId)?.name ?? m.studentId) })), [members, students])
+  const intervalTerm = useMemo(() => {
+    const ed = editions.find((e: any) => e.id === Ekiden_thId)
+    const ekName = ed ? (ekidens.find((k: any) => k.id === ed.ekidenId)?.name ?? "") : ""
+    return ekName.includes("箱根") ? "区" : "区间"
+  }, [editions, Ekiden_thId, ekidens])
+  function cnNum(n: number) {
+    const d = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九"]
+    if (n <= 10) return ["", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十"][n]
+    if (n < 20) return "十" + d[n - 10]
+    if (n % 10 === 0) return d[Math.floor(n / 10)] + "十"
+    return d[Math.floor(n / 10)] + "十" + d[n % 10]
+  }
   function tpToSeconds(v: any) { return v ? (v.hour() * 3600 + v.minute() * 60 + v.second()) : 0 }
   async function create() {
     if (!teamId || !intervalId || !studentId || !scoreStr) { message.error("请完整选择队伍、区间、队员并填写成绩"); return }
@@ -243,13 +255,13 @@ export default function EkidenResultsAdminPage() {
         {baseIntervals.length > 0 ? (
           <div style={{ maxHeight: 520, overflowY: "auto" }}>
             <div style={{ display: "grid", gridTemplateColumns: "140px 1fr 100px 140px", gap: 8, alignItems: "center", padding: 8, background: "#fafafa", borderBottom: "1px solid #eee", fontWeight: 600 }}>
-              <div>区间</div>
+              <div>{intervalTerm}</div>
               <div>队员</div>
               <div>排名</div>
               <div>成绩</div>
             </div>
             {rows.map((r, idx) => {
-              const name = baseIntervals.find((b: any) => b.id === r.id)?.name ?? r.id
+              const name = baseIntervals.find((b: any) => b.id === r.id)?.name ?? (cnNum(idx + 1) + "区")
               const picked = new Set(rows.map(x => x.studentId).filter(v => v && v !== r.studentId))
               const options = memberOptions.map(opt => ({ ...opt, disabled: picked.has(opt.value) }))
               return (
@@ -268,7 +280,7 @@ export default function EkidenResultsAdminPage() {
       </Modal>
       <div style={{ marginTop: 16 }}>
         <div style={{ display: "grid", gridTemplateColumns: "160px 160px 160px 120px 120px", gap: 8, alignItems: "center", padding: 8, background: "#fafafa", borderBottom: "1px solid #eee", fontWeight: 600 }}>
-          <div>区间</div>
+          <div>{intervalTerm}</div>
           <div>队员</div>
           <div>成绩</div>
           <div>排名</div>
@@ -276,7 +288,7 @@ export default function EkidenResultsAdminPage() {
         </div>
         {results.map((r: any) => (
           <div key={r.id} style={{ display: "grid", gridTemplateColumns: "160px 160px 160px 120px 120px", gap: 8, alignItems: "center", padding: 8, borderBottom: "1px solid #eee" }}>
-            <div>{(() => { const ti = thIntervals.find(i => i.id === r.Ekiden_th_intervalId); const name = baseIntervals.find((b: any) => b.id === ti?.ekiden_intervalId)?.name; return name ?? r.Ekiden_th_intervalId })()}</div>
+            <div>{(() => { const ti = thIntervals.find(i => i.id === r.Ekiden_th_intervalId); const name = baseIntervals.find((b: any) => b.id === ti?.ekiden_intervalId)?.name; if (name) return name; const idx = thIntervals.findIndex(i => i.id === r.Ekiden_th_intervalId); return cnNum(idx + 1) + "区" })()}</div>
             <div>{(() => { const schId = teams.find((t: any) => t.id === r.Ekiden_no_teamId)?.schoolId; const list = schId ? (studentsBySchool[schId] || []) : students; const nm = list.find((s: any) => s.id === r.studentId)?.name; return nm ?? r.studentId })()}</div>
             <div>{dayjs().startOf("day").add(Number(r.score || 0), "second").format("HH:mm:ss")}</div>
             <div>{r.rank}</div>

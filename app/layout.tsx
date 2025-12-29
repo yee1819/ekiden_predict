@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import "antd/dist/reset.css";
 import FirstVisitNotice from "@/app/components/FirstVisitNotice";
+import LayoutClientBridge from "@/app/components/LayoutClientBridge";
 
 const appSans = localFont({
   src: [
@@ -27,7 +28,7 @@ export const metadata: Metadata = {
     // shortcut: "/favicon.ico",
     // apple: "/apple-icon.png",
   },
-   title: {
+  title: {
     default: "箱根駅伝予測",
     template: "%s | 箱根駅伝予測",
   },
@@ -38,17 +39,16 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;  
-}>) 
-
-
-{
+  children: React.ReactNode;
+}>) {
   return (
     <html lang="en">
       <body className={
-        `${appSans.className} 
-        ${appMono.variable} antialiased`}>
+        `
+        ${appSans.variable} ${appMono.variable}  antialiased`
+      }>
         <FirstVisitNotice />
+        <LayoutClientBridge fontSansClass={appSans.className} fontMonoClass={appMono.className} />
         {children}
       </body>
     </html>

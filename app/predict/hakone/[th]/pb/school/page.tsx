@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react"
 import { useParams } from "next/navigation"
 import { Segmented } from "antd"
+import { fetchPublicOrApi } from "@/app/lib/public-cache"
 
 function pad2(n: number) { return String(n).padStart(2, "0") }
 function formatSeconds(sec?: number | null) {
@@ -33,37 +34,30 @@ export default function SchoolPBPage() {
 
     useEffect(() => {
         ; (async () => {
-            const ekidensRes = await fetch("/api/admin/ekidens")
-            const ekidensData = ekidensRes.ok ? await ekidensRes.json() : []
+            const ekidensData = await fetchPublicOrApi<any[]>("public-ekidens", "all", "/api/ekidens")
             const hakone = ekidensData.find((e: any) => e.name === "箱根")
             if (!hakone) return
-            const edRes = await fetch(`/api/admin/editions?ekidenId=${hakone.id}`)
-            const eds = edRes.ok ? await edRes.json() : []
+            const eds = await fetchPublicOrApi<any[]>("public-editions", Number(hakone.id), `/api/editions?ekidenId=${hakone.id}`)
             const ed = eds.find((x: any) => String(x.ekiden_th) === String(params?.th ?? ""))
             if (ed) setEkidenThId(ed.id)
-            const schoolsRes = await fetch("/api/admin/schools")
-            setSchools(schoolsRes.ok ? await schoolsRes.json() : [])
+            setSchools(await fetchPublicOrApi<any[]>("public-schools", "all", "/api/schools"))
         })()
     }, [params?.th])
 
     useEffect(() => {
         ; (async () => {
             if (!ekidenThId) return
-            const teamsRes = await fetch(`/api/admin/teams?Ekiden_thId=${ekidenThId}`)
-            const tlist = teamsRes.ok ? await teamsRes.json() : []
+            const tlist = await fetchPublicOrApi<any[]>("public-teams", Number(ekidenThId), `/api/teams?Ekiden_thId=${ekidenThId}`)
             setTeams(tlist)
             const membersMap: Record<number, any[]> = {}
             for (const t of tlist) {
-                const memRes = await fetch(`/api/admin/team-members?ekiden_no_teamId=${t.id}`)
-                membersMap[t.id] = memRes.ok ? await memRes.json() : []
+                membersMap[t.id] = await fetchPublicOrApi<any[]>("public-team-members", Number(t.id), `/api/team-members?ekiden_no_teamId=${t.id}`)
             }
             setMembersByTeam(membersMap)
             const schoolIds: number[] = Array.from(new Set(tlist.map((t: any) => Number(t.schoolId))))
             const studentsMap: Record<number, any[]> = {}
             for (const sid of schoolIds) {
-                const stuRes = await fetch(`/api/admin/students?schoolId=${sid}`)
-                const data = (stuRes.ok ? await stuRes.json() : []) as any[]
-                studentsMap[sid] = data
+                studentsMap[sid] = await fetchPublicOrApi<any[]>("public-students", Number(sid), `/api/students?schoolId=${sid}`)
             }
             setStudentsBySchool(studentsMap)
         })()
@@ -165,7 +159,7 @@ export default function SchoolPBPage() {
                     <div style={{ padding: 6, borderBottom: "1px solid #eee", borderLeft: "2px solid #999", borderRight: "1px solid #eee" }}>半马排名</div>
                     <div style={{ padding: 6, borderBottom: "1px solid #eee", borderRight: "2px solid #999" }}>半马平均</div>
                 </div>
-                <div style={{ display: "grid", gridTemplateColumns: "60px 3fr 80px 160px 80px 160px 80px 160px", gap: 0 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "60px 3fr 80px 160px 80px 160px 80px 160px", gap: 0, background: "rgba(var(--panel-bg-rgb), var(--panel-opacity))" }}>
                     {sorted.map((r, idx) => (
                         <React.Fragment key={r.schoolId}>
                             <div style={{ padding: 6, textAlign: "center", borderBottom: "1px solid #eee", borderRight: "1px solid #eee", background: schoolBg(r.schoolId) }}>{String(idx + 1).padStart(2, "0")}</div>

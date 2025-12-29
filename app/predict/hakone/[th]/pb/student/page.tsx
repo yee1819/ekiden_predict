@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { Modal, Select } from "antd"
+import { fetchPublicOrApi } from "@/app/lib/public-cache"
 
 function pad2(n: number) { return String(n).padStart(2, "0") }
 function parseTimeStr(t?: string) {
@@ -67,8 +68,7 @@ export default function StudentPBPage() {
 
     useEffect(() => {
         ; (async () => {
-            const ekidensRes = await fetch("/api/admin/ekidens")
-            const ekidensData = ekidensRes.ok ? await ekidensRes.json() : []
+            const ekidensData = await fetchPublicOrApi<any[]>("public-ekidens", "all", "/api/ekidens")
             const hakone = ekidensData.find((e: any) => e.name === "箱根")
             if (!hakone) return
             const m = new Map<number, string>()
@@ -82,48 +82,41 @@ export default function StudentPBPage() {
 
             setEkidenById(m)
             setEkidenShortById(sm)
-            const edRes = await fetch(`/api/admin/editions?ekidenId=${hakone.id}`)
-            const eds = edRes.ok ? await edRes.json() : []
+            const eds = await fetchPublicOrApi<any[]>("public-editions", Number(hakone.id), `/api/editions?ekidenId=${hakone.id}`)
             const ed = eds.find((x: any) => String(x.ekiden_th) === String(params?.th ?? ""))
             if (ed) { setEkidenThId(ed.id); setEventYear(Number(ed.year)) }
-            const schoolsRes = await fetch("/api/admin/schools")
-            setSchools(schoolsRes.ok ? await schoolsRes.json() : [])
+            setSchools(await fetchPublicOrApi<any[]>("public-schools", "all", "/api/schools"))
         })()
     }, [params?.th])
 
     useEffect(() => {
         ; (async () => {
             if (!ekidenThId) return
-            const teamsRes = await fetch(`/api/admin/teams?Ekiden_thId=${ekidenThId}`)
-            const tlist = teamsRes.ok ? await teamsRes.json() : []
+            const tlist = await fetchPublicOrApi<any[]>("public-teams", Number(ekidenThId), `/api/teams?Ekiden_thId=${ekidenThId}`)
             setTeams(tlist)
             const membersMap: Record<number, any[]> = {}
             for (const t of tlist) {
-                const memRes = await fetch(`/api/admin/team-members?ekiden_no_teamId=${t.id}`)
-                membersMap[t.id] = memRes.ok ? await memRes.json() : []
+                membersMap[t.id] = await fetchPublicOrApi<any[]>("public-team-members", Number(t.id), `/api/team-members?ekiden_no_teamId=${t.id}`)
             }
             setMembersByTeam(membersMap)
             const schoolIds: number[] = Array.from(new Set(tlist.map((t: any) => Number(t.schoolId))))
 
             const studentsMap: Record<number, any[]> = {}
             for (const sid of schoolIds) {
-                const stuRes = await fetch(`/api/admin/students?schoolId=${sid}`)
-                const data = (stuRes.ok ? await stuRes.json() : []) as any[]
-                studentsMap[sid] = data
+                studentsMap[sid] = await fetchPublicOrApi<any[]>("public-students", Number(sid), `/api/students?schoolId=${sid}`)
             }
             setStudentsBySchool(studentsMap)
             const ids = Array.from(new Set(Object.values(membersMap).flat().map((m: any) => m.studentId).filter(Boolean)))
             if (ids.length) {
-                const entRes = await fetch(`/api/admin/student-entries?studentIds=${ids.join(',')}`)
-                const ent = entRes.ok ? await entRes.json() : []
+                const sortedIds = ids.slice().sort((a, b) => a - b)
+                const ent = await fetchPublicOrApi<any[]>("public-student-entries", sortedIds, `/api/student-entries?studentIds=${ids.join(',')}`)
                 const byId: Record<number, any[]> = {}
                 for (const e of ent) { if (!byId[e.studentId]) byId[e.studentId] = []; byId[e.studentId].push(e) }
                 setEntriesById(byId)
                 const presentEkidenIds = Array.from(new Set(ent.map((h: any) => h.ekidenId).filter(Boolean))) as number[]
                 const maps: Record<number, Record<number, string>> = {}
                 await Promise.all(presentEkidenIds.map(async (eid) => {
-                    const r = await fetch(`/api/admin/intervals?ekidenId=${eid}`)
-                    const arr = r.ok ? await r.json() : []
+                    const arr = await fetchPublicOrApi<any[]>("public-intervals", Number(eid), `/api/intervals?ekidenId=${eid}`)
                     maps[eid] = Object.fromEntries(arr.map((x: any) => [x.id, x.name]))
                 }))
                 setIntervalMaps(maps)
@@ -247,7 +240,7 @@ export default function StudentPBPage() {
         const rank = useMemo(() => rankMap(kind), [membersByTeam, studentsBySchool, kind])
         const rows = filterSchoolId ? rowsBase.filter(r => r.schoolId === filterSchoolId) : rowsBase
         return (
-            <div ref={sectionRef} style={{ border: "1px solid #ddd", borderRadius: 10, background: "#fff", padding: 12 }}>
+            <div ref={sectionRef} style={{ border: "1px solid #ddd", borderRadius: 10, background: "rgba(var(--panel-bg-rgb), var(--panel-opacity))", padding: 12 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                     <strong>{title}</strong>
                 </div>

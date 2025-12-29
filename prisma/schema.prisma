@@ -88,22 +88,24 @@ model student {
 
   //学生的成绩
   /// 1500m
-  score_1500m         Float?
+  score_1500m              Float?
   /// 5000m
-  score_5000m         Float?
+  score_5000m              Float?
   /// 10000m
-  score_10000m        Float?
+  score_10000m             Float?
   /// 半程马拉松
-  score_half_marathon Float?
+  score_half_marathon      Float?
   /// 全程马拉松
-  score_full_marathon Float?
+  score_full_marathon      Float?
   /// 高校PB
-  score_college_pb    Float?
+  score_college_pb         Float?
   /// 入学年份（可选）
-  entryYear           Int?
-  studentEkidenItems  student_ekiden_item[]
-  teamMemberships     Ekiden_Team_Member[]
-  ekidenTeamPredicts  Ekiden_Team_Predict[]
+  entryYear                Int?
+  studentEkidenItems       student_ekiden_item[]
+  teamMemberships          Ekiden_Team_Member[]
+  ekidenTeamPredicts       Ekiden_Team_Predict[]
+  ekidenStarterLists       Ekiden_Starter_List[]
+  ekidenUserPredictDetails Ekiden_User_Predict_Detail[]
 
   @@index([schoolId])
 }
@@ -153,9 +155,11 @@ model Ekiden_th {
   /// 预测
   Ekiden_Team_Predict Ekiden_Team_Predict[]
 
-  Ekiden_th_interval Ekiden_th_interval[]
-  studentEkidenItems student_ekiden_item[]
-  ekidenPredictLikes Ekiden_Predict_Like[]
+  Ekiden_th_interval         Ekiden_th_interval[]
+  studentEkidenItems         student_ekiden_item[]
+  ekidenPredictLikes         Ekiden_Predict_Like[]
+  ekidenStarterLists         Ekiden_Starter_List[]
+  ekidenUserPredictSummaries Ekiden_User_Predict_Summary[]
 }
 
 /// 每个学生的那个区间的成绩
@@ -211,9 +215,11 @@ model Ekiden_no_team {
   teamMembers Ekiden_Team_Member[]
   leader      String
 
-  Ekiden_Team_Predict Ekiden_Team_Predict[]
-  studentEkidenItems  student_ekiden_item[]
-  ekidenPredictLikes  Ekiden_Predict_Like[]
+  Ekiden_Team_Predict        Ekiden_Team_Predict[]
+  studentEkidenItems         student_ekiden_item[]
+  ekidenPredictLikes         Ekiden_Predict_Like[]
+  starterLists               Ekiden_Starter_List[]
+  ekidenUserPredictSummaries Ekiden_User_Predict_Summary[]
 
   @@unique([schoolId, Ekiden_thId])
   @@index([schoolId])
@@ -294,11 +300,71 @@ model Ekiden_th_interval {
   /// 区间
   ekiden_interval   ekiden_interval @relation(fields: [ekiden_intervalId], references: [id])
 
-  student_ekiden_item student_ekiden_item[]
-  ekidenTeamPredicts  Ekiden_Team_Predict[]
+  student_ekiden_item      student_ekiden_item[]
+  ekidenTeamPredicts       Ekiden_Team_Predict[]
+  ekidenStarterLists       Ekiden_Starter_List[]
+  ekidenUserPredictDetails Ekiden_User_Predict_Detail[]
 
   @@index([Ekiden_thId])
   @@index([ekiden_intervalId])
+}
+
+/// 用户预测汇总（一次用户提交的最终首发替换方案）
+model Ekiden_User_Predict_Summary {
+  id               Int            @id @default(autoincrement())
+  Ekiden_thId      Int
+  Ekiden_th        Ekiden_th      @relation(fields: [Ekiden_thId], references: [id])
+  Ekiden_no_teamId Int
+  Ekiden_no_team   Ekiden_no_team @relation(fields: [Ekiden_no_teamId], references: [id])
+  userName         String
+  opinion          String?        @db.Text
+  ipAddress        String?        @db.Text
+  batchId          String?        @db.Text
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @default(now()) @updatedAt
+
+  details Ekiden_User_Predict_Detail[]
+
+  @@index([Ekiden_thId])
+  @@index([Ekiden_no_teamId])
+}
+
+/// 用户预测详情（记录具体区间替补上的队员）
+model Ekiden_User_Predict_Detail {
+  id                   Int                         @id @default(autoincrement())
+  summaryId            Int
+  summary              Ekiden_User_Predict_Summary @relation(fields: [summaryId], references: [id])
+  Ekiden_th_intervalId Int
+  Ekiden_th_interval   Ekiden_th_interval          @relation(fields: [Ekiden_th_intervalId], references: [id])
+  substitutedStudentId Int
+  student              student                     @relation(fields: [substitutedStudentId], references: [id])
+
+  @@index([summaryId])
+  @@index([Ekiden_th_intervalId])
+  @@index([substitutedStudentId])
+}
+
+/// 首发名单（按届、队伍、区间选择队员，无成绩/排名）
+model Ekiden_Starter_List {
+  id                   Int                @id @default(autoincrement())
+  /// 队伍
+  Ekiden_no_teamId     Int
+  Ekiden_no_team       Ekiden_no_team     @relation(fields: [Ekiden_no_teamId], references: [id])
+  /// 届数
+  Ekiden_thId          Int
+  Ekiden_th            Ekiden_th          @relation(fields: [Ekiden_thId], references: [id])
+  /// 届-区间
+  Ekiden_th_intervalId Int
+  Ekiden_th_interval   Ekiden_th_interval @relation(fields: [Ekiden_th_intervalId], references: [id])
+  /// 队员
+  studentId            Int
+  student              student            @relation(fields: [studentId], references: [id])
+
+  /// 一个队伍在某届的某区间只能选择一名首发队员
+  @@unique([Ekiden_th_intervalId, Ekiden_no_teamId])
+  @@index([Ekiden_no_teamId])
+  @@index([Ekiden_thId])
+  @@index([studentId])
 }
 
 model User {
