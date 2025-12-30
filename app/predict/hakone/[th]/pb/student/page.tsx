@@ -269,7 +269,7 @@ export default function StudentPBPage() {
             <h1 style={{ fontSize: 20 }}>{`第${params?.th ?? ""}回箱根驿传 本届PB排行榜`}</h1>
 
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 8 }}>
-                <button onClick={() => router.push(`/predict/hakone/${params?.th ?? ""}`)} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6 }}>返回主页</button>
+                <button onClick={() => router.push(`/`)} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6 }}>返回主页</button>
                 <Select style={{ minWidth: 240 }} value={filterSchoolId} options={schoolOptions} onChange={(v) => setFilterSchoolId(v)} placeholder="筛选学校" allowClear virtual={false} />
                 <Select style={{ minWidth: 160 }} value={metricView} onChange={(v) => setMetricView(v)} options={[{ label: "全部展示", value: "all" }, { label: "5000m", value: "5000" }, { label: "10000m", value: "10000" }, { label: "半马", value: "half" }]} />
             </div>

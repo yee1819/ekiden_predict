@@ -145,7 +145,7 @@ export default function SchoolPBPage() {
         <div style={{ padding: 16, maxWidth: 1200, margin: "0 auto" }}>
             <h1 style={{ fontSize: 20 }}>{`第${params?.th ?? ""}回箱根驿传 学校PB排行榜`}</h1>
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}>
-                <button onClick={() => location.assign(`/predict/hakone/${params?.th ?? ""}`)} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6 }}>返回主页</button>
+                <button onClick={() => location.assign(`/`)} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6 }}>返回主页</button>
                 <Segmented value={sortBy} onChange={(v) => setSortBy(v as any)} options={[{ label: "5000", value: "5000" }, { label: "10000", value: "10000" }, { label: "半马", value: "half" }]} />
             </div>
             <div style={{ border: "1px solid #ddd", borderRadius: 10, background: "#fff", padding: 12 }}>
