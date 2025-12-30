@@ -54,6 +54,7 @@ export default function RootLayout({
     { title: "比赛结果", desc: "本届比赛结果", href: `/ekiden/hakone/${year}/result`, isDisabled: true },
     { title: "比赛排名", desc: "本届比赛各种数据排名", href: `/ekiden/hakone/${year}/rank`, isDisabled: true },
     { title: "各个区间排名", desc: "查看每个区间的排名", href: `/ekiden/hakone/${year}/interval`, isDisabled: true },
+    { title: "箱根观察日志", desc: "网站开发箱根驿传的观察日志", href: `/ekiden/post`,isDisabled: true }  ,
   ]
   return (
     <html lang="en">

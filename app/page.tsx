@@ -17,7 +17,8 @@ export default function Home() {
     { title: "学校PB榜", desc: "各校PB统计与对比", href: `/predict/hakone/${year}/pb/school` },
     { title: "比赛结果", desc: "本届比赛结果", href: `/ekiden/hakone/${year}/result`, isDisabled: true },
     { title: "比赛排名", desc: "本届比赛各种数据排名", href: `/ekiden/hakone/${year}/rank`, isDisabled: true },
-    { title: "各个区间排名", desc: "查看每个区间的排名", href: `/ekiden/hakone/${year}/interval`, isDisabled: true }
+    { title: "各个区间排名", desc: "查看每个区间的排名", href: `/ekiden/hakone/${year}/interval`, isDisabled: true },
+    { title: "箱根观察日志", desc: "查看箱根驿传的观察日志", href: `/ekiden/post`, isDisabled: true },
     // { title: "预测汇总", desc: "本届整体预测与时间汇总", href: `/predict/hakone/${year}/summary` },
   ]
   return (

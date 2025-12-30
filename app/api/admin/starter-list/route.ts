@@ -3,6 +3,8 @@ import { prisma } from "@/app/lib/prisma"
 import { headers } from "next/headers"
 import { auth } from "@/app/lib/auth"
 
+const mdl: any = (prisma as any).ekiden_Starter_List
+
 export async function GET(req: Request) {
   const { searchParams } = new URL(req.url)
   const teamId = searchParams.get("ekiden_no_teamId")
@@ -10,7 +12,6 @@ export async function GET(req: Request) {
   const where: any = {}
   if (teamId) where.Ekiden_no_teamId = Number(teamId)
   if (thId) where.Ekiden_thId = Number(thId)
-  const mdl: any = (prisma as any).ekiden_Starter_List
   if (!mdl || typeof mdl.findMany !== "function") {
     return NextResponse.json({ error: "PrismaClient未包含Ekiden_Starter_List，请先生成客户端并同步数据库：npm run postinstall、npm run db:push（或 prisma generate / prisma migrate:deploy）" }, { status: 500 })
   }
@@ -40,6 +41,9 @@ export async function POST(req: Request) {
   const student = await prisma.student.findUnique({ where: { id: Number(data.studentId) } })
   if (!student) return NextResponse.json({ error: "student not found" }, { status: 400 })
   if (student.schoolId !== team.schoolId) return NextResponse.json({ error: "student not in team school" }, { status: 400 })
+  if (!mdl || typeof mdl.upsert !== "function") {
+    return NextResponse.json({ error: "PrismaClient未包含Ekiden_Starter_List，请先生成客户端并同步数据库：npm run postinstall、npm run db:push（或 prisma generate / prisma migrate:deploy）" }, { status: 500 })
+  }
   try {
     const item = await mdl.upsert({
       where: { Ekiden_th_intervalId_Ekiden_no_teamId: { Ekiden_th_intervalId: Number(data.Ekiden_th_intervalId), Ekiden_no_teamId: team.id } },
@@ -59,6 +63,7 @@ export async function DELETE(req: Request) {
   const idParam = searchParams.get("id")
   const teamIdParam = searchParams.get("ekiden_no_teamId")
   const thIdParam = searchParams.get("Ekiden_thId")
+  if (!mdl) return NextResponse.json({ error: "PrismaClient未包含Ekiden_Starter_List，请先生成客户端并同步数据库：npm run postinstall、npm run db:push（或 prisma generate / prisma migrate:deploy）" }, { status: 500 })
   if (idParam) {
     const id = Number(idParam)
     await mdl.delete({ where: { id } })
