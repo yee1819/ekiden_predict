@@ -156,8 +156,8 @@ function PostPageInner() {
 
 export default function Page() {
   return (
-    <Suspense fallback={<div style={{ padding: 12 }}>加载中...</div>}}>
+    <Suspense fallback={<div style={{ padding: 12 }}>加载中...</div>}>
       <PostPageInner />
-    </Suspense >
+    </Suspense>
   )
 }
