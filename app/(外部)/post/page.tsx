@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useMemo, useState } from "react"
+import React, { Suspense, useEffect, useMemo, useState } from "react"
 import { Form, Input, Select, DatePicker } from "antd"
 import Link from "next/link"
 import { BlogCard } from "@/app/components/topImg"
@@ -64,7 +64,7 @@ function formatTime(s?: string) {
   } catch { return s || "-" }
 }
 
-export default function Page() {
+function PostPageInner() {
   const [form] = Form.useForm()
   const [list, setList] = useState<PostItem[]>([])
   const [filters, setFilters] = useState<{ title?: string; category?: string; createdRange?: Range | undefined }>({})
@@ -151,5 +151,13 @@ export default function Page() {
         </div>
       </div>
     </main>
+  )
+}
+
+export default function Page() {
+  return (
+    <Suspense fallback={<div style={{ padding: 12 }}>加载中...</div>}}>
+      <PostPageInner />
+    </Suspense >
   )
 }
