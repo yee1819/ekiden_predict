@@ -6,7 +6,7 @@ import { convert } from 'html-to-text';
 
 
 
-function WordCount({ Compiled, components }: { Compiled: React.ComponentType<any> | null; components: any; }) {
+function WordCount({ Compiled, components, setWordCount2, wordCount2 }: { Compiled: React.ComponentType<any> | null; components: any; setWordCount2?: (value: number) => void, wordCount2?: number }) {
   const [wordCountValue, setWordCountValue] = useState<number>(0);
   const [characterCountValue, setCharacterCountValue] = useState<number>(0);
 
@@ -37,6 +37,9 @@ function WordCount({ Compiled, components }: { Compiled: React.ComponentType<any
         const characterCount = plainText.length;
 
 
+        if (setWordCount2) {
+          setWordCount2(characterWithLettersCount);
+        }
         setWordCountValue(characterWithLettersCount);
         setCharacterCountValue(characterCount);
 
@@ -47,7 +50,7 @@ function WordCount({ Compiled, components }: { Compiled: React.ComponentType<any
   }, [Compiled]);
   return (<>
 
-    <div> 字数: {wordCountValue} 个字 | 字符数: {characterCountValue} 个字符</div>
+    <div> 字数: {wordCount2} 个字 | 字符数: {characterCountValue} 个字符</div>
   </>)
 }
 

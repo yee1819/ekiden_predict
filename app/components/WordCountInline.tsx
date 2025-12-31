@@ -1,4 +1,8 @@
 "use client"
+/***
+ * 没啥用的
+ */
+
 import { useEffect, useState } from "react"
 import { compile } from "@mdx-js/mdx"
 import * as jsxRuntime from "react/jsx-runtime"

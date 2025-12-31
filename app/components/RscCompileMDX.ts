@@ -8,8 +8,12 @@ import GithubSlugger from "github-slugger";
 import { visit } from "unist-util-visit";
 import MyButton from "@/app/components/mdx/button";
 import type { Element } from "hast";
-
-
+import StudentEkiden from "@/app/components/mdx/studentEkiden";
+import SchoolStartHakone from "@/app/components/mdx/schoolstartHakone";
+import SchoolZenNiHon from "@/app/components/mdx/schoolZenNiHon";
+import SchoolIzumo from "@/app/components/mdx/schoolIzumo";
+import HakonePredictFinal from "@/app/components/mdx/hakonePredictFinal";
+import HakoneStart from '@/app/components/mdx/hakoneStart'
 
 import { transformerNotationDiff, transformerNotationHighlight, transformerRenderWhitespace } from '@shikijs/transformers';
 
@@ -164,7 +168,7 @@ export default async function serializeMDX(content: string) {
                     rehypePlugins: [rehypeKatex, [rehypePrettyCode, options]],
                 },
             },
-            components: { MyButton },
+            components: { MyButton,StudentEkiden ,SchoolStartHakone,SchoolZenNiHon,SchoolIzumo,HakonePredictFinal,HakoneStart},
         });
 
         return { source: mdxContent, toc };

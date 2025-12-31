@@ -73,8 +73,8 @@ export default function Page() {
   useEffect(() => {
     async function load() {
       const res = await fetch('/api/post')
-      const data = await res.json()
-      const items: PostItem[] = (data || []).map((it) => ({
+      const data: any[] = await res.json()
+      const items: PostItem[] = (data || []).map((it: any) => ({
         slug: it.slug,
         title: it.title,
         Category: it.Category,

@@ -14,6 +14,13 @@ import WordCount from "./wordCount";
 import { Button } from "antd";
 import MyButton from "@/app/components/mdx/button";
 import type { Element } from "hast";
+import StudentEkiden from "@/app/components/mdx/studentEkiden";
+import SchoolStartHakone from "@/app/components/mdx/schoolstartHakone";
+import SchoolZenNiHon from "@/app/components/mdx/schoolZenNiHon";
+import SchoolIzumo from "@/app/components/mdx/schoolIzumo";
+import HakonePredictFinal from "@/app/components/mdx/hakonePredictFinal";
+import   HakoneStart  from "@/app/components/mdx/hakoneStart";
+
 
 // import { renderToStaticMarkup } from 'react-dom/server';
 // // import { compile as mdxCompile  } from '@mdx-js/mdx';
@@ -24,7 +31,13 @@ let currentStartLine = 0;
 
 const components = {
   // MyLabel,
-  MyButton
+  MyButton,
+  StudentEkiden,
+  SchoolStartHakone,
+  SchoolZenNiHon,
+  SchoolIzumo,
+  HakonePredictFinal,
+  HakoneStart,
 };
 const options = {
 
@@ -115,7 +128,7 @@ const options = {
 };
 
 
-export default function Preview({ text, onTextChange }: { text: string, onTextChange?: (value: string) => void }) {
+export default function MDXCSR({ text, onTextChange, setWordCount2, wordCount2 }: { text: string, onTextChange?: (value: string) => void, setWordCount2?: (value: number) => void, wordCount2?: number }) {
   const [Compiled, setCompiled] = useState<React.ComponentType<any> | null>(null);
   const [value, setValue] = useState<string>(text || "");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -199,6 +212,8 @@ export default function Preview({ text, onTextChange }: { text: string, onTextCh
       {/* <WordCount mdxContent={value}  /> */}
       <WordCount Compiled={Compiled}
       components={components}
+      setWordCount2={setWordCount2}
+      wordCount2={wordCount2}
       />
 
       <div className="mb-4">

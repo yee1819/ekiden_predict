@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     image: body.image == null ? null : String(body.image),
     layout: String(body.layout || 'None') as ImageLayout,
     published: body.published === true,
-    wordCount: Number(body.wordCount || 0),
+    wordCount: Number(body.wordCount2 ?? body.wordCount ?? 0),
     Status: String(body.Status) as PostStatus,
     Category: String(body.Category) as PostCategory,
     authorId: body.authorId ? String(body.authorId) : null,
@@ -55,7 +55,8 @@ export async function PUT(req: NextRequest) {
   if (body.image !== undefined) data.image = body.image == null ? null : String(body.image)
   if (body.layout != null) data.layout = String(body.layout) as ImageLayout
   if (body.published != null) data.published = body.published === true
-  if (body.wordCount != null) data.wordCount = Number(body.wordCount)
+  if (body.wordCount2 != null) data.wordCount = Number(body.wordCount2)
+  else if (body.wordCount != null) data.wordCount = Number(body.wordCount)
   if (body.Status != null) data.Status = String(body.Status) as PostStatus
   if (body.Category != null) data.Category = String(body.Category) as PostCategory
   if (body.authorId !== undefined) data.authorId = body.authorId ? String(body.authorId) : null

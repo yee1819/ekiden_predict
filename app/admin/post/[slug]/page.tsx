@@ -55,6 +55,10 @@ function Page() {
 
   const [wordCount, setWordCount] = useState<number>(0)
 
+
+
+  const [wordCount2, setWordCount2] = useState<number>(0)
+
   useEffect(() => {
     let cancelled = false
     ;(async () => {
@@ -103,7 +107,7 @@ function Page() {
 
   async function onSubmit() {
     const v = form.getFieldsValue()
-    const payload = { ...v, slug: slugParam ?? v.slug, content, wordCount, published: v.Status === 'Published' }
+    const payload = { ...v, slug: slugParam ?? v.slug, content, wordCount2, published: v.Status === 'Published' }
     const res = await fetch('/api/admin/posts', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
     if (res.ok) {
       message.success('已保存')
@@ -162,7 +166,7 @@ function Page() {
 
         <div>
           <div style={{ fontWeight: 600, marginBottom: 8 }}>正文</div>
-          <MDXCSR text={content} onTextChange={setContent} />
+          <MDXCSR text={content} onTextChange={setContent}  setWordCount2={setWordCount2}  wordCount2={wordCount2} />
         </div>
       </Space>
     </>

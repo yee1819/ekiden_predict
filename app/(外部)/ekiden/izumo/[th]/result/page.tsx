@@ -52,56 +52,58 @@ export default async function Page({ params }: { params: Promise<{ th: string }>
         const thEntry = cached.thEntry
         const teamViews = cached.teamViews
         return (
-            <main className="bg-gray-50 py-10 px-6 text-gray-900 min-h-screen h-full overflow-y-auto">
-                <div className="max-w-5xl mx-auto">
-                    <h1 className="text-2xl font-bold mb-4">出雲驿传 第{thEntry.ekiden_th}届（{thEntry.year}）队伍成绩</h1>
-                    <div className="space-y-6">
-                        {teamViews.map((team: any, teamIdx: number) => (
-                            <div key={team.id} className="rounded-xl border bg-white p-4 shadow-sm" style={{ borderColor: (teamIdx === 0 ? "#FFD700" : teamIdx === 1 ? "#C0C0C0" : teamIdx === 2 ? "#CD7F32" : undefined), borderWidth: (teamIdx < 3 ? 8 : 1), borderStyle: "solid" }}>
-                                <div className="flex items-baseline justify-between">
-                                    <div className="text-lg font-bold">{teamIdx === 0 ? "冠军" : teamIdx === 1 ? "亚军" : teamIdx === 2 ? "季军" : `${teamIdx + 1}位`} {team.schoolName}</div>
-                                    <div className="text-sm text-gray-600">总时间：{formatSeconds(team.totalSec)}</div>
+            <>
+                <main className="bg-gray-50 py-10 px-6 text-gray-900 min-h-screen h-full overflow-y-auto">
+                    <div className="max-w-5xl mx-auto">
+                        <h1 className="text-2xl font-bold mb-4">出雲驿传 第{thEntry.ekiden_th}届（{thEntry.year}）队伍成绩</h1>
+                        <div className="space-y-6">
+                            {teamViews.map((team: any, teamIdx: number) => (
+                                <div key={team.id} className="rounded-xl border bg-white p-4 shadow-sm" style={{ borderColor: (teamIdx === 0 ? "#FFD700" : teamIdx === 1 ? "#C0C0C0" : teamIdx === 2 ? "#CD7F32" : undefined), borderWidth: (teamIdx < 3 ? 8 : 1), borderStyle: "solid" }}>
+                                    <div className="flex items-baseline justify-between">
+                                        <div className="text-lg font-bold">{teamIdx === 0 ? "冠军" : teamIdx === 1 ? "亚军" : teamIdx === 2 ? "季军" : `${teamIdx + 1}位`} {team.schoolName}</div>
+                                        <div className="text-sm text-gray-600">总时间：{formatSeconds(team.totalSec)}</div>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+                                        {team.slots.map((slot: any, idx: number) => (
+                                            <div
+                                                key={idx}
+                                                className="relative rounded-lg border p-3"
+                                                style={{
+                                                    backgroundColor:
+                                                        slot.rank === 1
+                                                            ? "#FFD700"
+                                                            : slot.rank === 2
+                                                                ? "#C0C0C0"
+                                                                : slot.rank === 3
+                                                                    ? "#CD7F32"
+                                                                    : "#F9FAFB",
+                                                }}
+                                            >
+                                                <div style={{ position: "absolute", top: 6, right: 10, textAlign: "right" }}>
+                                                    <div style={{ fontSize: 18, fontWeight: 800 }}>{slot.name}</div>
+                                                    <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>5000 {formatPBText(slot.pb5000, "5000")}</div>
+                                                    <div style={{ fontSize: 12, color: "#555" }}>10000 {formatPBText(slot.pb10000, "10000")}</div>
+                                                    <div style={{ fontSize: 12, color: "#555" }}>半马 {formatPBText(slot.pbHalf, "half")}</div>
+                                                    <span>此时位次：{slot.cumRank ?? "—"}位</span>
+                                                </div>
+                                                <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                                                    <span style={{ fontSize: 16, fontWeight: 800 }}>{slot.intervalName}</span>
+                                                    <span style={{ fontSize: 12, color: "#666", marginTop: -2 }}>{slot.km ?? "—"}km</span>
+                                                </div>
+                                                <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: 1 }}>{formatSeconds(slot.sec)} <span style={{ fontSize: 12, color: "#555", marginTop: 2 }}>{slot.rank ?? "—"}位</span></div>
+                                                <div style={{ fontSize: 13, color: "#666" }}>配速：{formatPace(slot.sec ?? null, slot.km ?? null)}</div>
+                                                <div style={{ display: "flex", gap: 12, fontSize: 13, color: "#333", marginTop: 4 }}>
+                                                    <span>用时：{formatSeconds(slot.cumSec ?? null)}</span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
-                                    {team.slots.map((slot: any, idx: number) => (
-                                        <div
-                                            key={idx}
-                                            className="relative rounded-lg border p-3"
-                                            style={{
-                                                backgroundColor:
-                                                    slot.rank === 1
-                                                        ? "#FFD700"
-                                                        : slot.rank === 2
-                                                            ? "#C0C0C0"
-                                                            : slot.rank === 3
-                                                                ? "#CD7F32"
-                                                                : "#F9FAFB",
-                                            }}
-                                        >
-                                            <div style={{ position: "absolute", top: 6, right: 10, textAlign: "right" }}>
-                                                <div style={{ fontSize: 18, fontWeight: 800 }}>{slot.name}</div>
-                                                <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>5000 {formatPBText(slot.pb5000, "5000")}</div>
-                                                <div style={{ fontSize: 12, color: "#555" }}>10000 {formatPBText(slot.pb10000, "10000")}</div>
-                                                <div style={{ fontSize: 12, color: "#555" }}>半马 {formatPBText(slot.pbHalf, "half")}</div>
-                                                <span>此时位次：{slot.cumRank ?? "—"}位</span>
-                                            </div>
-                                            <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-                                                <span style={{ fontSize: 16, fontWeight: 800 }}>{slot.intervalName}</span>
-                                                <span style={{ fontSize: 12, color: "#666", marginTop: -2 }}>{slot.km ?? "—"}km</span>
-                                            </div>
-                                            <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: 1 }}>{formatSeconds(slot.sec)} <span style={{ fontSize: 12, color: "#555", marginTop: 2 }}>{slot.rank ?? "—"}位</span></div>
-                                            <div style={{ fontSize: 13, color: "#666" }}>配速：{formatPace(slot.sec ?? null, slot.km ?? null)}</div>
-                                            <div style={{ display: "flex", gap: 12, fontSize: 13, color: "#333", marginTop: 4 }}>
-                                                <span>用时：{formatSeconds(slot.cumSec ?? null)}</span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
-                </div>
-            </main>
+                </main>
+            </>
         )
     } catch { }
 
