@@ -378,8 +378,58 @@ model User {
   sessions      Session[]
   accounts      Account[]
 
+  posts Post[]
+
   @@unique([email])
   @@map("user")
+}
+
+enum PostCategory {
+  HaKoNe ///　箱根
+  ZenNiHon ///全日本
+  IZuMo /// 出雲
+  KouKou ///高中
+  AoYaMa ///青山
+  Joshi /// 女子
+  KouKouJoshi /// 高中女子
+  Other /// 其他
+  ThInterval /// 田径比赛
+}
+
+enum PostStatus {
+  Draft /// 草稿
+  Published /// 发布 
+  Deleted /// 删除
+  Private ///私密
+}
+
+enum ImageLayout {
+  Top /// 图片在顶部
+  Left /// 图片在左侧
+  Right /// 图片在右侧
+  None /// 无图片
+}
+
+model Post {
+  id           Int          @id @default(autoincrement())
+  slug         String 
+  title        String
+  content      String?     @db.Text
+  excerpt      String? /// 摘要
+  published    Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt()
+  lastEditedAt DateTime? ///仅content有更新时才更新
+  wordCount    Int          @default(0)
+  image        String? /// 封面图片
+  layout       ImageLayout  @default(None) /// 默认为图片的位置
+  Status       PostStatus   @default(Draft)
+  Category     PostCategory @default(HaKoNe)
+  author       User?        @relation(fields: [authorId], references: [id])
+  authorId     String?      @default("t32leeDbTDWoDbJQmlMD0wh9fqAb8z0C")
+  // postLikes     PostLike[]
+
+  @@map("post")
 }
 
 model Session {

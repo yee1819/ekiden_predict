@@ -30,6 +30,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <Link href="/admin/teams">队伍</Link>
           <Link href="/admin/ekiden-results">驿传成绩</Link>
           <Link href="/admin/starter-list">首发名单</Link>
+          <Link href="/admin/post">文章</Link>
         </nav>
       </aside>
       <main style={{ flex: 1, padding: 16 }}>{children}</main>

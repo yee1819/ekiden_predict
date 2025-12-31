@@ -1,0 +1,536 @@
+
+/**
+  * 添加代码行数显示
+  * Based on: https://rehype-pretty-example-next.pages.dev/
+  */
+
+  code {
+    counter-reset: line;
+  }
+  
+  
+  
+  code>[data-line]::before {
+    counter-increment: line;
+    /* content: counter(data-line-number); */
+    content: attr(data-line-number);
+    /* Other styling */
+    display: inline-block;
+    width: 1rem;
+    margin-right: 2rem;
+    text-align: right;
+    color: rgb(231, 62, 62);
+  }
+  
+  
+  
+  
+  
+  
+  code[data-line-numbers-max-digits="2"]>[data-line]::before {
+    width: 2rem;
+  }
+  
+  code[data-line-numbers-max-digits="3"]>[data-line]::before {
+    width: 3rem;
+  }
+  
+  
+  
+  [data-highlighted-line-id="add"] {
+    background-color: #5de64a63 !important;
+    /* 行背景色 */
+    padding: 0 1rem;
+  }
+  
+  code>[data-line][data-highlighted-line-id="add"]::before {
+    content: '+';
+    display: inline-block;
+    width: 1rem;
+    margin-right: 0.5rem;
+    color: #22c55e;
+    /* 绿色 */
+    font-weight: bold;
+  }
+  
+  [data-highlighted-line-id="del"] {
+    background-color: #f56b6b70 !important;
+    text-decoration: line-through;
+    /* 行背景色 */
+    padding: 0 1rem;
+  }
+  
+  code>[data-line][data-highlighted-line-id="del"]::before {
+    content: '-';
+    display: inline-block;
+    width: 1rem;
+    margin-right: 0.5rem;
+    color: #f56b6b;
+    /* 绿色 */
+    font-weight: bold;
+  }
+  
+  [data-highlighted-line-id="tip"] {
+    background-color: #6bbef56d !important;
+    /* 行背景色 */
+    padding: 0 1rem;
+  }
+  
+  
+  [data-highlighted-line-id="w"] {
+    background-color: #f5d96b70 !important;
+    /* 行背景色 */
+    padding: 0 1rem;
+  }
+  
+  
+  /* 当代码块有 [data-highlighted-line-id="focuse"] 时，非指定行应用模糊效果 */
+  pre code:has([data-highlighted-line-id="focuse"]) span:not([data-highlighted-line-id="focuse"]) {
+    filter: blur(2px);
+    /* 毛玻璃模糊效果 */
+    transition: filter 0.3s ease;
+    /* 平滑过渡 */
+  }
+  
+  /* 指定行及其所有子元素保持清晰 */
+  pre code span[data-highlighted-line-id="focuse"],
+  pre code span[data-highlighted-line-id="focuse"] * {
+    filter: none !important;
+    /* 强制覆盖所有子元素的模糊 */
+    /* background-color: #e0e0e0;  */
+    /* 可选：高亮背景 */
+  }
+  
+  
+  
+  
+  /* 有点意思，只作用于悬停的部分 */
+  /* pre code:has([data-highlighted-line-id="focuse"]) span:not([data-highlighted-line-id="focuse"]):hover {
+    filter: none; 
+    background-color: #d0d0d0; 
+  } */
+  
+  /* 鼠标悬停整个代码块时，所有内容变清晰 */
+  figure:hover,
+  pre:hover,
+  pre code:hover {
+    filter: none !important;
+    /* 作用于整个渲染层次 */
+  }
+  
+  figure:hover *,
+  pre:hover *,
+  pre code:hover * {
+    filter: none !important;
+    /* 覆盖所有子元素的模糊 */
+  }
+  
+  
+  
+  
+  
+  
+  /* 字符高亮样式，针对 /def/#b */
+  span[data-chars-id="b"] {
+    color: #ff0000 !important;
+    /* 红色文字 */
+    background-color: #f0f0f0 !important;
+    /* 灰色背景 */
+    font-weight: bold;
+    /* 加粗 */
+    border: 1px solid #000;
+    /* 边框 */
+    padding: 2px 4px;
+    /* 内边距 */
+  }
+  
+  /* 确保字符高亮的 span 在高亮行中的样式 */
+  .line.highlighted span[data-chars-id="b"] {
+    color: #ff0000 !important;
+    background-color: #f0f0f0 !important;
+  }
+  
+  /* 可选：为所有高亮的行添加通用样式 */
+  [data-line] {
+    padding: 0 1rem;
+  }
+  
+  
+  /* 基础样式：语言标签 */
+  /* pre[data-language] {/ */
+  /* position: relative; */
+  /* padding-top: 2.25rem; 给标签留出空间 */
+  /* border-radius: 0.5rem; */
+  /* overflow: hidden; */
+  /* background: #f6f8fa; github-light背景 */
+  /* } */
+  
+  
+  
+  pre[data-language]::before {
+    font-family: fantasy;
+  }
+  
+  
+  
+  
+  /* ==========================
+      MDX代码块（语言标签 + 复制按钮）
+      ========================== */
+  pre[data-language] {
+    position: relative;
+    padding-top: 2.25rem;
+    /* 给顶部元素留空间 */
+    border-radius: 0.5rem;
+    overflow: hidden;
+  }
+  
+  /* 左上角显示语言标签
+    pre[data-language]::before {
+      content: attr(data-language);
+      position: absolute;
+      top: 0.4rem;
+      left: 0.75rem;
+      font-size: 0.7rem;
+      font-family: monospace;
+      text-transform: uppercase;
+      color: #666;
+      background: #eaeef2;
+      padding: 2px 6px;
+      border-radius: 6px;
+    } */
+  
+  /* 常见语言名称映射 */
+  pre[data-language="js"]::before {
+    content: "JavaScript";
+  }
+  
+  pre[data-language="ts"]::before {
+    content: "TypeScript";
+  }
+  
+  pre[data-language="tsx"]::before {
+    content: "React (TSX)";
+  }
+  
+  pre[data-language="jsx"]::before {
+    content: "React (JSX)";
+  }
+  
+  pre[data-language="py"]::before {
+    content: "Python";
+  }
+  
+  pre[data-language="html"]::before {
+    content: "HTML";
+  }
+  
+  pre[data-language="css"]::before {
+    content: "CSS";
+  }
+  
+  pre[data-language="json"]::before {
+    content: "JSON";
+  }
+  
+  /* 右上角复制按钮 */
+  .code-copy-btn {
+    position: absolute;
+    top: 0.4rem;
+    right: 0.75rem;
+    font-size: 0.75rem;
+    background: #e5e7eb;
+    color: #111;
+    border: none;
+    border-radius: 4px;
+    padding: 2px 8px;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+  
+  .code-copy-btn:hover {
+    background: #d1d5db;
+  }
+  
+  
+  
+  /* ==========================
+      代码块容器（语言标签 + 复制按钮）
+      ========================== */
+  
+  /* 代码块容器基础样式 */
+  pre[data-language] {
+    position: relative;
+    padding-top: 1.25rem;
+    padding-bottom: 1.25rem;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+    background: #f9fafb;
+    transition: background 0.2s;
+  }
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  pre[data-language]::before {
+    content: attr(data-language);
+    font-family: "Fira Code", "Cascadia Code", monospace !important;
+  
+    font: solid;
+    position: absolute;
+    top: 0.4rem;
+    right: 0.75rem;
+    font-size: 0.7rem;
+    font-family: monospace;
+    text-transform: uppercase;
+    color: #666;
+    background: #eaeef2;
+    padding: 2px 6px;
+    border-radius: 6px;
+    transition: opacity 0.2s;
+  }
+  
+  /* 悬停时隐藏语言标签 */
+  pre[data-language]:hover::before {
+    opacity: 0;
+  }
+  
+  /* 复制按钮默认隐藏 */
+  .code-copy-btn {
+    font-family: "Fira Code", "Cascadia Code", monospace !important;
+    
+    position: absolute;
+    top: 0.35rem;
+    right: 0.6rem;
+    font-size: 0.75rem;
+    background: #e5e7eb;
+    color: #111;
+    border: none;
+    border-radius: 4px;
+    padding: 2px 8px;
+    padding: 0.35rem;
+    /* margin: ; */
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.25s, background 0.2s;
+  }
+  
+  /* 悬停时显示复制按钮 */
+  pre[data-language]:hover .code-copy-btn {
+    opacity: 1;
+  }
+  
+  /* 按钮 hover 效果 */
+  .code-copy-btn:hover {
+    background: #d1d5db;
+  }
+  
+  
+  span[data-rehype-pretty-code-figure] {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.375rem;
+    background: #ae82e42c;
+    border: 1px solid #e5e7eb;
+    color: #111827;
+    font-family: "Fira Code", "JetBrains Mono", "Cascadia Code", monospace !important;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    /* 自动换行 */
+    word-break: break-word;
+    padding: 0.5rem;
+    transition: background 0.2s ease, border-color 0.2s ease;
+  }
+  
+  span[data-rehype-pretty-code-figure]:hover {
+    background: #22212354;
+    border-color: #d1d5db;
+  }
+  
+  /* 内部 code 标签 */
+  span[data-rehype-pretty-code-figure] code {
+    background: transparent !important;
+    font-family: inherit !important;
+    color: inherit !important;
+    padding: 0 !important;
+  
+    border: none !important;
+  }
+  
+  span[data-rehype-pretty-code-figure] code::after {
+    content: none !important;
+  }
+  
+  span[data-rehype-pretty-code-figure] code::before {
+    content: none !important;
+  }
+  
+  span[data-rehype-pretty-code-figure] code>[data-line] {
+    background: transparent !important;
+    font-family: "Fira Code", "JetBrains Mono", "Cascadia Code", monospace !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+  }
+  
+  /* 禁止显示行号或特殊符号 */
+  span[data-rehype-pretty-code-figure] code>[data-line]::before {
+    display: none !important;
+  }
+  
+  
+  
+  
+  
+  
+  .prose pre {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  
+  .prose p,
+  .prose code {
+    word-break: break-all;
+    /* 或 break-word 强制换行长词 */
+  }
+  
+  
+  
+  pre .diff.add {
+    background-color: rgba(0, 255, 0, 0.1);
+    /* 浅绿色背景 */
+    /* border-left: 1px solid #00ff00; */
+  }
+  
+  
+  pre .diff.remove {
+    background-color: rgba(255, 0, 0, 0.1);
+    /* 浅红色背景 */
+    /* border-left: 4px solid #ff0000; */
+    text-decoration: line-through;
+    /* 删除线 */
+  }
+  
+  pre .diff.add::before {
+    /* content: "+ ";  */
+    /* 在添加行前添加加号 */
+    /* color: #00ff00; */
+    /* font-weight: bold; */
+    /* margin-right: 0.5rem; */
+    margin-left: 0.2rem;
+  }
+  
+  pre .diff.remove::before {
+    /* content: "- ";  在删除行前添加减号 */
+    /* color: #ff0000; */
+    /* font-weight: bold; */
+    margin-left: 0.2rem;
+  }
+  
+  
+  pre .tab,
+  pre .space {
+    position: relative;
+  }
+  
+  pre .tab::before {
+    content: '⇥';
+    position: absolute;
+    opacity: 0.3;
+  }
+  
+  pre .space::before {
+    content: '·';
+    position: absolute;
+    opacity: 0.3;
+  }
+  
+  
+  
+  [data-rehype-pretty-code-figure] {
+    position: relative;
+    /* display: inline-block; */
+  }
+  
+  [data-rehype-pretty-code-title] {
+    position: absolute;
+    top: -0.65rem;
+    left: 0rem;
+    font-weight: bold;
+    font-size: 0.85rem;
+    color: #e06c75;
+    background: none;
+    z-index: 10;
+  
+    padding: 2px;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-top: 0.45rem;
+    padding-bottom: 0.45rem;
+    /* margin: 100px; */
+  
+    border-bottom: 3px solid #f1b3b3;
+    border-right: 1px solid #f1b3b3;
+  
+    border-bottom-left-radius: -99px;
+    border-bottom-right-radius: 999px;
+    box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.05) inset;
+  
+  }
+  
+  
+  
+  /* 让代码框略微向下移动，避免文字重叠 */
+  [data-rehype-pretty-code-figure] pre {
+    /* padding-top: 2.5rem !important;
+    border-radius: 6px; */
+    border: 2px solid #f1b3b3;
+  }
+  
+  
+  figure[data-rehype-pretty-code-figure]:has(figcaption[data-rehype-pretty-code-title]) pre{
+    padding-top: 2.5rem !important;
+    border-radius: 6px;
+  }
+  
+  
+  /**
+    * 滚动条
+    */
+  
+  /* 自定义滚动条样式 */
+  figure[data-rehype-pretty-code-figure] pre {
+    /* 确保 pre 元素有滚动行为 */
+    /* max-height: 200px; */
+    overflow-y: auto;
+    scrollbar-width: thin; /* Firefox */
+    scrollbar-color: #f2e043be #f1f1f1; /* Firefox (轨道颜色 滑块颜色) */
+  }
+  
+  /* WebKit 浏览器 (Chrome, Safari, Edge) */
+  figure[data-rehype-pretty-code-figure] pre::-webkit-scrollbar {
+    width: 8px; /* 滚动条宽度 */
+    height: 8px; /* 横向滚动条高度（如果需要） */
+  }
+  
+  figure[data-rehype-pretty-code-figure] pre::-webkit-scrollbar-track {
+    background: #f1f1f1; /* 轨道背景色 */
+    border-radius: 4px; /* 轨道圆角 */
+  }
+  
+  figure[data-rehype-pretty-code-figure] pre::-webkit-scrollbar-thumb {
+    background: #b7e878; /* 滑块颜色 */
+    border-radius: 4px; /* 滑块圆角 */
+    transition: background 0.3s; /* 过渡效果 */
+  }
+  
+  figure[data-rehype-pretty-code-figure] pre::-webkit-scrollbar-thumb:hover {
+    background: #74f786; /* 鼠标悬停时颜色 */
+  }
