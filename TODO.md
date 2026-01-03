@@ -24,9 +24,19 @@ scp kirari@192.168.202.129:/home/kirari/Projects/ekiden_predict/next-build-*.tar
 
 tar -czf next-build-$(date +%s).tar.gz .next
 
+tar -czf node_modules-build-$(date +%s).tar.gz node_modules
+
+
+
 本地：
 
 scp kirari@192.168.202.129:/home/kirari/Projects/ekiden_predict/next-build-*.tar.gz  E:/
+
+
+
+scp kirari@192.168.202.129:/home/kirari/Projects/ekiden_predict/node_modules-*.tar.gz  E:/
+
+
 
 
 scp kirari@192.168.202.129:/home/kirari/Projects/ekiden_predict/node_moudules.zip  E:/

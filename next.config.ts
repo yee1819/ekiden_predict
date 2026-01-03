@@ -1,8 +1,5 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-  /* config options here */
-    images: {
+const nextConfig = {
+  images: {
     remotePatterns: [
       {
         protocol: "https",
@@ -13,6 +10,9 @@ const nextConfig: NextConfig = {
         hostname: "yee-1312555989.cos.ap-guangzhou.myqcloud.com",
       },
     ],
+  },
+  turbopack: {
+    root: process.cwd(),
   },
 };
 

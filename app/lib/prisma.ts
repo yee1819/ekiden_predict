@@ -10,10 +10,24 @@ function buildMariaAdapter() {
         const user = decodeURIComponent(u.username || "")
         const password = decodeURIComponent(u.password || "")
         const database = (u.pathname || "").replace(/^\//, "")
-        return new PrismaMariaDb({ host, port, user, password, database, connectionLimit: 20 })
+
+        const adapter = new PrismaMariaDb({
+            host,
+            port,
+            user,
+            password,
+            database,
+            connectionLimit: 12,
+            connectTimeout: 5000,
+            acquireTimeout: 15000,
+            idleTimeout: 300,
+        })
+        console.log("Prisma connected", adapter)
+        return adapter
     } catch {
         return new PrismaMariaDb({ host: "localhost", port: 3306, user: "root", password: "", database: "" })
     }
+
 }
 
 const adapter = buildMariaAdapter()
