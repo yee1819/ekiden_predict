@@ -10,7 +10,7 @@ function avg(nums: number[]) {
 }
 
 export async function getIntervalsData(ekidenThId: number) {
-  const thIntervals = await prisma.ekiden_th_interval.findMany({ where: { Ekiden_thId: ekidenThId }, orderBy: { ekiden_intervalId: "asc" } })
+  const thIntervals = await prisma.ekiden_th_interval.findMany({ where: { Ekiden_thId: ekidenThId }, orderBy: { ekiden_intervalId: "asc" }, include: { ekiden_interval: true } })
   const teams = await prisma.ekiden_no_team.findMany({ where: { Ekiden_thId: ekidenThId }, select: { id: true, schoolId: true } })
   const teamSchool = new Map<number, number>()
   teams.forEach((t) => teamSchool.set(t.id, t.schoolId))
@@ -56,7 +56,7 @@ export async function getIntervalsData(ekidenThId: number) {
       if (eName.includes("出雲") || eName.toLowerCase().includes("izumo")) ekidenType = "出雲"
       else if (eName.includes("全日本") || eName.toLowerCase().includes("all japan")) ekidenType = "全日本"
       else if (eName.includes("箱根") || eName.toLowerCase().includes("hakone")) ekidenType = "箱根"
-      
+
       if (!ekidenType) return null
 
       // Calculate grade
@@ -67,11 +67,11 @@ export async function getIntervalsData(ekidenThId: number) {
       if (stu?.entryYear && h.Ekiden_th.year) {
         g = h.Ekiden_th.year - stu.entryYear + 1
       } else {
-          // Fallback if entryYear is missing, try to use grade enum if it maps to 1-4
-          // But schema says grade is enum ONE, TWO...
-          // We can just send the raw year and let client calc, or calc here.
-          // Let's calc here if possible.
-          // Actually, let's trust entryYear from student.
+        // Fallback if entryYear is missing, try to use grade enum if it maps to 1-4
+        // But schema says grade is enum ONE, TWO...
+        // We can just send the raw year and let client calc, or calc here.
+        // Let's calc here if possible.
+        // Actually, let's trust entryYear from student.
       }
       if (g < 1) g = 1
       if (g > 4) g = 4
@@ -82,10 +82,10 @@ export async function getIntervalsData(ekidenThId: number) {
         intervalName: h.Ekiden_th_interval.ekiden_interval.name,
         rank: h.rank,
         time: h.score, // keep as number or format? Client expects string in formatSeconds or number? 
-                       // The reference code uses formatSeconds(it.score) -> string "HH:MM:SS"
-                       // I'll send number and let client format, OR send formatted string.
-                       // Reference: `time: typeof it.score === "number" ? formatSeconds(it.score) : undefined`
-                       // I will send formatted string to match `EntryRecord` type from reference.
+        // The reference code uses formatSeconds(it.score) -> string "HH:MM:SS"
+        // I'll send number and let client format, OR send formatted string.
+        // Reference: `time: typeof it.score === "number" ? formatSeconds(it.score) : undefined`
+        // I will send formatted string to match `EntryRecord` type from reference.
         isNewRecord: h.isNewRecord,
         year: h.Ekiden_th.year
       }
@@ -118,7 +118,7 @@ export async function getIntervalsData(ekidenThId: number) {
     const avgCollegePB = avg(list.map((x: any) => x.sCollegePB))
     return {
       intervalId: ti.id,
-      intervalName: ti.name,
+      intervalName: ti.ekiden_interval?.name || "",
       items: list,
       averages: { avg5000, avg10000, avgHalf, avgCollegePB },
     }
@@ -130,7 +130,7 @@ export async function getIntervalsData(ekidenThId: number) {
   for (const it of items) {
     const sid = teamSchool.get(it.Ekiden_no_teamId)
     if (!Number.isFinite(sid as any)) continue
-    
+
     // Total Time Calculation
     const v = Number(it.score)
     if (Number.isFinite(v) && v > 0) {

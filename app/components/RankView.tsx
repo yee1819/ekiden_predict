@@ -294,18 +294,19 @@ export default function RankView({
               return { teamId: tv.id, schoolName: tv.schoolName, totalSec: tv.totalSec, slot }
             }).filter(r => !!r.slot) as Row[]
 
-            const by: (a: Row, b: Row) => number = {
-              total: (a, b) => cmp(valAsc(a.totalSec), valAsc(b.totalSec)),
-              interval: (a, b) => cmp(valAsc(a.slot.sec), valAsc(b.slot.sec)),
-              cum: (a, b) => cmp(valAsc(a.slot.cumSec), valAsc(b.slot.cumSec)),
-              pb10000: (a, b) => cmp(valAsc(a.slot.pb10000), valAsc(b.slot.pb10000)),
-              pb5000: (a, b) => cmp(valAsc(a.slot.pb5000), valAsc(b.slot.pb5000)),
-              pbHalf: (a, b) => cmp(valAsc(a.slot.pbHalf), valAsc(b.slot.pbHalf)),
-              frontTotal: (a, b) => cmp(valAsc(frontTotalByTeam.get(a.teamId)), valAsc(frontTotalByTeam.get(b.teamId))),
-              backTotal: (a, b) => cmp(valAsc(backTotalByTeam.get(a.teamId)), valAsc(backTotalByTeam.get(b.teamId))),
-              frontCum: (a, b) => cmp(valAsc(frontPrefixByTeam.get(a.teamId)?.get(ord)), valAsc(frontPrefixByTeam.get(b.teamId)?.get(ord))),
-              backCum: (a, b) => cmp(valAsc(backPrefixByTeam.get(a.teamId)?.get(ord)), valAsc(backPrefixByTeam.get(b.teamId)?.get(ord))),
-            }[sortKey]
+            const comparators: Record<SortKey, (a: Row, b: Row) => number> = {
+              total: (a: Row, b: Row) => cmp(valAsc(a.totalSec), valAsc(b.totalSec)),
+              interval: (a: Row, b: Row) => cmp(valAsc(a.slot.sec), valAsc(b.slot.sec)),
+              cum: (a: Row, b: Row) => cmp(valAsc(a.slot.cumSec), valAsc(b.slot.cumSec)),
+              pb10000: (a: Row, b: Row) => cmp(valAsc(a.slot.pb10000), valAsc(b.slot.pb10000)),
+              pb5000: (a: Row, b: Row) => cmp(valAsc(a.slot.pb5000), valAsc(b.slot.pb5000)),
+              pbHalf: (a: Row, b: Row) => cmp(valAsc(a.slot.pbHalf), valAsc(b.slot.pbHalf)),
+              frontTotal: (a: Row, b: Row) => cmp(valAsc(frontTotalByTeam.get(a.teamId)), valAsc(frontTotalByTeam.get(b.teamId))),
+              backTotal: (a: Row, b: Row) => cmp(valAsc(backTotalByTeam.get(a.teamId)), valAsc(backTotalByTeam.get(b.teamId))),
+              frontCum: (a: Row, b: Row) => cmp(valAsc(frontPrefixByTeam.get(a.teamId)?.get(ord)), valAsc(frontPrefixByTeam.get(b.teamId)?.get(ord))),
+              backCum: (a: Row, b: Row) => cmp(valAsc(backPrefixByTeam.get(a.teamId)?.get(ord)), valAsc(backPrefixByTeam.get(b.teamId)?.get(ord))),
+            }
+            const by = comparators[sortKey]
 
             rows.sort(by)
 

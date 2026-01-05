@@ -38,6 +38,8 @@ export default function FinalPredictSummaryPage() {
   const [countsBySchool, setCountsBySchool] = useState<Record<number, number>>({})
   const [loading, setLoading] = useState<boolean>(false)
 
+  type CountsRes = { countsBySchoolId?: Record<number, number>, count?: number }
+
   async function computeFingerprint(): Promise<string> {
     try {
       const ua = navigator.userAgent
@@ -118,14 +120,14 @@ export default function FinalPredictSummaryPage() {
       if (!ekidenThId) return
       const teamSchoolIds = teams.map((t: any) => t.schoolId)
       if (teamSchoolIds.length) {
-        const cj = await fetch(`/api/predict/hakone/final/count?ekidenThId=${ekidenThId}&schoolIds=${teamSchoolIds.join(',')}`).then(r => r.ok ? r.json() : {})
-        const map = (cj?.countsBySchoolId || {}) as Record<number, number>
+        const cj: CountsRes = await fetch(`/api/predict/hakone/final/count?ekidenThId=${ekidenThId}&schoolIds=${teamSchoolIds.join(',')}`).then(async r => r.ok ? await r.json() as CountsRes : ({ countsBySchoolId: {} } as CountsRes))
+        const map = cj.countsBySchoolId ?? {}
         setCountsBySchool(map)
       } else {
         setCountsBySchool({})
       }
-      const tj = await fetch(`/api/predict/hakone/final/count?ekidenThId=${ekidenThId}`).then(r => r.ok ? r.json() : {})
-      setTotalCount(Number(tj?.count || 0))
+      const tj: CountsRes = await fetch(`/api/predict/hakone/final/count?ekidenThId=${ekidenThId}`).then(async r => r.ok ? await r.json() as CountsRes : ({ count: 0 } as CountsRes))
+      setTotalCount(Number(tj.count || 0))
     })()
   }, [ekidenThId, teams])
 
@@ -158,7 +160,7 @@ export default function FinalPredictSummaryPage() {
       setLikesMap(lmap)
       setTeamCount(Number(countsBySchool[selectedSchoolId] || 0))
       try {
-        const idRaw = (Array.isArray(j2?.groups) ? j2.groups : []).flatMap((g: any) => g.items.map((it: any) => it.playerId))
+        const idRaw = (Array.isArray(lj?.groups) ? lj.groups : []).flatMap((g: any) => g.items.map((it: any) => it.playerId))
         const ids = Array.from(new Set(idRaw)).filter((id): id is number => Number.isFinite(id as number))
         if (ids.length) {
           const ent = await fetchPublicOrApi<any[]>("public-student-entries", ids.slice().sort((a, b) => a - b), `/api/student-entries?studentIds=${ids.join(',')}`)
