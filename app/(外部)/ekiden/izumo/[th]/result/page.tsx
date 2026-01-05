@@ -90,7 +90,11 @@ export default async function Page({ params }: { params: Promise<{ th: string }>
                                                     <span style={{ fontSize: 16, fontWeight: 800 }}>{slot.intervalName}</span>
                                                     <span style={{ fontSize: 12, color: "#666", marginTop: -2 }}>{slot.km ?? "—"}km</span>
                                                 </div>
-                                                <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: 1 }}>{formatSeconds(slot.sec)} <span style={{ fontSize: 12, color: "#555", marginTop: 2 }}>{slot.rank ?? "—"}位</span></div>
+                                                <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: 1 }}>
+                                                    <span style={{ color: slot.isNewRecord ? "red" : undefined }}>{formatSeconds(slot.sec)}</span>
+                                                    
+                                                    <span style={{ fontSize: 12, color: slot.isNewRecord ? "red" : "#555", marginTop: 2 }}>{slot.rank ?? "—"}位 {slot.isNewRecord ? <span style={{ color: "red", marginLeft: 4 }}>『新』</span> : null}</span>
+                                                </div>
                                                 <div style={{ fontSize: 13, color: "#666" }}>配速：{formatPace(slot.sec ?? null, slot.km ?? null)}</div>
                                                 <div style={{ display: "flex", gap: 12, fontSize: 13, color: "#333", marginTop: 4 }}>
                                                     <span>用时：{formatSeconds(slot.cumSec ?? null)}</span>
@@ -155,6 +159,7 @@ export default async function Page({ params }: { params: Promise<{ th: string }>
             pbHalf?: number | null
             cumSec?: number | null
             cumRank?: number | null
+            isNewRecord?: boolean
         }>
     }
 
@@ -170,6 +175,7 @@ export default async function Page({ params }: { params: Promise<{ th: string }>
                 pb5000: it.student?.score_5000m ?? null,
                 pb10000: it.student?.score_10000m ?? null,
                 pbHalf: it.student?.score_half_marathon ?? null,
+                isNewRecord: it.isNewRecord === true,
             }))
             .sort((a, b) => a.order - b.order)
 

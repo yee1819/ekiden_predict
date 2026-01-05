@@ -30,6 +30,7 @@ export async function GET(req: Request) {
     score: i.score,
     baseIntervalId: i.Ekiden_th_interval?.ekiden_intervalId,
     intervalName: i.Ekiden_th_interval?.ekiden_interval?.name,
+    isNewRecord: i.isNewRecord === true,
   }))
   return NextResponse.json(shaped)
 }

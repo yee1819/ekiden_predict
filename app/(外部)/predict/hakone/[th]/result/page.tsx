@@ -16,7 +16,7 @@ export default function ResultPage() {
     const [schoolName, setSchoolName] = useState<string>("")
     const [schools, setSchools] = useState<any[]>([])
     const [teams, setTeams] = useState<any[]>([])
-    const [selectedSchoolId, setSelectedSchoolId] = useState<number | undefined>(5)
+    const [selectedSchoolId, setSelectedSchoolId] = useState<number | undefined>(undefined)
     const [list, setList] = useState<{ groups: { items: any[]; meta: any }[]; meta: any } | null>(null)
     const [showOpinion, setShowOpinion] = useState<boolean>(false)
     const [selectedOpinion, setSelectedOpinion] = useState<string>("")
@@ -24,7 +24,7 @@ export default function ResultPage() {
     const [filterName, setFilterName] = useState<string>("")
     const [ekidenIdToName, setEkidenIdToName] = useState<Record<number, "出雲" | "全日本" | "箱根" | undefined>>({})
     const [predFilter, setPredFilter] = useState<"all" | "withTime" | "withoutTime">("all")
-    const [sortBy, setSortBy] = useState<"likes_desc" | "likes_asc" | "created_desc" | "created_asc">("created_desc")
+    const [sortBy, setSortBy] = useState<"likes_desc" | "likes_asc" | "created_desc" | "created_asc" | "correct_desc" | "correct_asc">("created_desc")
     const [likesMap, setLikesMap] = useState<Record<string, number>>({})
     const [likedSet, setLikedSet] = useState<Set<string>>(new Set())
     const [popBatchId, setPopBatchId] = useState<string | null>(null)
@@ -113,51 +113,84 @@ export default function ResultPage() {
         })()
     }, [params?.th])
 
+    const [groupsByTeam, setGroupsByTeam] = useState<Record<number, any[]>>({})
+    const [likesByTeam, setLikesByTeam] = useState<Record<number, Record<string, number>>>({})
+
     useEffect(() => {
         ; (async () => {
             if (!ekidenThId) return
-            const totalRes = await fetch(`/api/predict/hakone/count?ekidenThId=${ekidenThId}`)
-            const total = totalRes.ok ? await totalRes.json() : {}
-            setTotalCount(Number(total?.count || 0))
-            const teamsRes = await fetch(`/api/teams?Ekiden_thId=${ekidenThId}`)
-            const tlist = teamsRes.ok ? await teamsRes.json() : []
-            setTeams(tlist)
-            const schoolId = selectedSchoolId ?? (schoolName ? (schools.find((s: any) => s.name === schoolName)?.id) : undefined)
-            const paramsStr = schoolId ? `schoolId=${schoolId}` : (schoolName ? `schoolName=${encodeURIComponent(schoolName)}` : "")
-            const teamRes = await fetch(`/api/predict/hakone/count?ekidenThId=${ekidenThId}${paramsStr ? `&${paramsStr}` : ""}`)
-            const team = teamRes.ok ? await teamRes.json() : {}
-            setTeamCount(Number(team?.count || 0))
-            const listRes = await fetch(`/api/predict/hakone/list?ekidenThId=${ekidenThId}${paramsStr ? `&${paramsStr}` : ""}`)
-            const lst = listRes.ok ? await listRes.json() : null
-            setList(lst)
-            try {
-                const teamId = lst?.meta?.teamId
-                if (Number.isFinite(teamId)) {
-                    const likesRes = await fetch(`/api/predict/hakone/likes?ekidenThId=${ekidenThId}&teamId=${teamId}`)
-                    const likeData = likesRes.ok ? await likesRes.json() : { likes: {} }
-                    setLikesMap(likeData?.likes || {})
-                } else {
-                    setLikesMap({})
+            const teamsData = await fetchPublicOrApi<any[]>("public-teams", Number(ekidenThId), `/api/teams?Ekiden_thId=${ekidenThId}`)
+            setTeams(teamsData)
+            const res = await fetch(`/api/predict/hakone/final/bundle?ekidenThId=${ekidenThId}`)
+            const j = res.ok ? await res.json() : null
+            setTotalCount(Number(j?.totalCount || 0))
+            setCountsBySchool((j?.countsBySchoolId || {}) as Record<number, number>)
+            setGroupsByTeam((j?.groupsByTeam || {}) as Record<number, any[]>)
+            setLikesByTeam((j?.likesByTeam || {}) as Record<number, Record<string, number>>)
+
+            const allIdsRaw = teamsData.flatMap((t: any) => (((j?.groupsByTeam || {})[t.id] || []) as any[]).flatMap((g: any) => (g.items || []).map((it: any) => it.playerId)))
+            const ids = Array.from(new Set(allIdsRaw)).filter((id): id is number => Number.isFinite(id as number))
+            if (ids.length) {
+                const sortedIds = ids.slice().sort((a, b) => a - b)
+                const ent = await fetchPublicOrApi<any[]>("public-student-entries", sortedIds, `/api/student-entries?studentIds=${ids.join(',')}`)
+                const map: Record<number, any[]> = {}
+                for (const e of ent) {
+                    if (!map[e.studentId]) map[e.studentId] = []
+                    map[e.studentId].push(e)
                 }
-            } catch { setLikesMap({}) }
-            try {
-                const idRaw = (lst?.groups ?? []).flatMap((g: any) => g.items.map((it: any) => it.playerId))
-                const ids = Array.from(new Set(idRaw)).filter((id): id is number => Number.isFinite(id as number))
-                if (ids.length) {
-                    const sortedIds = ids.slice().sort((a, b) => a - b)
-                    const ent = await fetchPublicOrApi<any[]>("public-student-entries", sortedIds, `/api/student-entries?studentIds=${ids.join(',')}`)
-                    const map: Record<number, any[]> = {}
-                    for (const e of ent) {
-                        if (!map[e.studentId]) map[e.studentId] = []
-                        map[e.studentId].push(e)
-                    }
-                    setEntriesById(map)
-                } else {
-                    setEntriesById({})
-                }
-            } catch { }
+                setEntriesById(map)
+            } else {
+                setEntriesById({})
+            }
+
+            // 默认选择：优先选有数据的学校
+            if (!selectedSchoolId && teamsData.length) {
+                const withData = teamsData.filter((t: any) => ((j?.countsBySchoolId || {})[t.schoolId] || 0) > 0)
+                const pick = withData.length ? withData[withData.length - 1] : teamsData[teamsData.length - 1]
+                if (pick) setSelectedSchoolId(pick.schoolId)
+            }
         })()
-    }, [ekidenThId, schoolName, selectedSchoolId, schools])
+    }, [ekidenThId])
+
+    useEffect(() => {
+        ; (async () => {
+            if (!ekidenThId || !selectedSchoolId) { setList(null); setLikesMap({}); return }
+            const team = teams.find((t: any) => t.schoolId === selectedSchoolId)
+            if (!team) { setList(null); setLikesMap({}); return }
+            let groups = groupsByTeam[team.id] || []
+            let likes = likesByTeam[team.id] || {}
+            if (!groups.length) {
+                try {
+                    const lj = await fetch(`/api/predict/hakone/list?ekidenThId=${ekidenThId}&schoolId=${selectedSchoolId}`).then(r => r.ok ? r.json() : { groups: [], meta: {} })
+                    const lg = Array.isArray(lj?.groups) ? lj.groups : []
+                    groups = lg
+                    setGroupsByTeam(prev => ({ ...prev, [team.id]: lg }))
+                    const likeRes = await fetch(`/api/predict/hakone/likes?ekidenThId=${ekidenThId}&teamId=${team.id}`)
+                    const likeJson = likeRes.ok ? await likeRes.json() : { likes: {} }
+                    likes = (likeJson?.likes || {}) as Record<string, number>
+                    setLikesByTeam(prev => ({ ...prev, [team.id]: likes }))
+                    const idRaw = lg.flatMap((g: any) => g.items.map((it: any) => it.playerId))
+                    const ids = Array.from(new Set(idRaw)).filter((id): id is number => Number.isFinite(id as number))
+                    const missing = ids.filter(id => !(id in entriesById))
+                    if (missing.length) {
+                        const sorted = missing.slice().sort((a, b) => a - b)
+                        const ent = await fetchPublicOrApi<any[]>("public-student-entries", sorted, `/api/student-entries?studentIds=${missing.join(',')}`)
+                        setEntriesById(prev => {
+                            const map = { ...prev }
+                            for (const e of ent) {
+                                if (!map[e.studentId]) map[e.studentId] = []
+                                map[e.studentId].push(e)
+                            }
+                            return map
+                        })
+                    }
+                } catch { }
+            }
+            setTeamCount(Number((countsBySchool[selectedSchoolId] || 0)))
+            setList({ groups, meta: { teamId: team.id } })
+            setLikesMap(likes)
+        })()
+    }, [selectedSchoolId, teams, groupsByTeam, countsBySchool])
 
     function formatSeconds(sec?: number | null) {
         if (sec == null) return "—"
@@ -200,7 +233,7 @@ export default function ResultPage() {
 
     type Grade = 1 | 2 | 3 | 4
     type EkidenType = "出雲" | "全日本" | "箱根"
-    type EntryRecord = { ekiden: EkidenType; grade: Grade; intervalName?: string; rank?: number; time?: string }
+    type EntryRecord = { ekiden: EkidenType; grade: Grade; intervalName?: string; rank?: number; time?: string; isNewRecord?: boolean }
     function renderEntriesGridByPlayer(playerId?: number | null) {
         const raw = (playerId && entriesById[playerId]) ? entriesById[playerId] : []
         const grades: Grade[] = [1, 2, 3, 4]
@@ -211,7 +244,7 @@ export default function ResultPage() {
             const g = gradeMap[String(it.grade)] as Grade
             const name = ekidenIdToName[it.ekidenId]
             if (!name) return
-            const rec: EntryRecord = { ekiden: name, grade: g, intervalName: it.intervalName, rank: typeof it.rank === "number" ? it.rank : undefined, time: typeof it.score === "number" ? formatSeconds(it.score) : undefined }
+            const rec: EntryRecord = { ekiden: name, grade: g, intervalName: it.intervalName, rank: typeof it.rank === "number" ? it.rank : undefined, time: typeof it.score === "number" ? formatSeconds(it.score) : undefined, isNewRecord: it?.isNewRecord === true }
             lookup.set(`${g}-${name}`, rec)
         })
         function cellBg(rec?: EntryRecord) {
@@ -250,7 +283,7 @@ export default function ResultPage() {
                                             borderLeft: "1px solid #eee",
                                         }}
                                     >
-                                        <div style={{ whiteSpace: "nowrap" }}>{text}</div>
+                                        <div style={{ whiteSpace: "nowrap" }}>{rec?.isNewRecord ? <span style={{ color: "red", marginRight: 2 }}>新</span> : null}{text}</div>
                                         {rec?.time && (
                                             <div style={{ fontSize: 12, color: "#555", marginTop: 2, whiteSpace: "nowrap" }}>{rec.time}</div>
                                         )}
@@ -319,18 +352,18 @@ export default function ResultPage() {
     const schoolSelectOptions = useMemo(() => {
         return [...teams].reverse().map((t: any) => {
             const name = schools.find((s: any) => s.id === t.schoolId)?.name ?? String(t.schoolId)
-            const cnt = countsBySchool[t.schoolId] || 0
+            const cnt = (groupsByTeam[t.id] || []).length
             return {
                 value: t.schoolId,
                 label: (
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
                         <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
-                        <span style={{ width: "6ch", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{cnt / 10}</span>
+                        <span style={{ width: "6ch", textAlign: "right", fontVariantNumeric: "tabular-nums" }}>{cnt}</span>
                     </div>
                 )
             }
         })
-    }, [teams, schools, countsBySchool])
+    }, [teams, schools, groupsByTeam])
     const filteredGroups = useMemo(() => {
         const gs: { items: any[]; meta: any }[] = list?.groups ?? []
         const q = filterName.trim().toLowerCase()
@@ -348,6 +381,10 @@ export default function ResultPage() {
             arr.sort((a, b) => (likesMap[a.meta?.batchId || ""] || 0) - (likesMap[b.meta?.batchId || ""] || 0))
         } else if (sortBy === "created_asc") {
             arr.sort((a, b) => new Date(a.meta?.createdAt || 0).getTime() - new Date(b.meta?.createdAt || 0).getTime())
+        } else if (sortBy === "correct_desc") {
+            arr.sort((a, b) => (b.meta?.correctCount || 0) - (a.meta?.correctCount || 0))
+        } else if (sortBy === "correct_asc") {
+            arr.sort((a, b) => (a.meta?.correctCount || 0) - (b.meta?.correctCount || 0))
         } else {
             arr.sort((a, b) => new Date(b.meta?.createdAt || 0).getTime() - new Date(a.meta?.createdAt || 0).getTime())
         }
@@ -383,9 +420,9 @@ export default function ResultPage() {
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <Select style={{ minWidth: 240 }} value={selectedSchoolId ?? undefined} options={schoolSelectOptions} onChange={(v) => setSelectedSchoolId(v)} placeholder="选择学校" virtual={false} />
                     <Input value={filterName} onChange={e => setFilterName(e.target.value)} allowClear placeholder="筛选昵称" style={{ width: 200 }} />
-                    <Select style={{ width: 160 }} value={sortBy} onChange={(v) => setSortBy(v)} options={[{ value: "likes_desc", label: "按点赞顺序" }, { value: "likes_asc", label: "按点赞倒序" }, { value: "created_desc", label: "按时间倒序" }, { value: "created_asc", label: "按时间顺序" }]} placeholder="排序" virtual={false} />
-                    <div>全体预测条数：{totalCount / 10}</div>
-                    <div>当前学校预测条数：{teamCount / 10}</div>
+                    <Select style={{ width: 160 }} value={sortBy} onChange={(v) => setSortBy(v)} options={[{ value: "likes_desc", label: "按点赞顺序" }, { value: "likes_asc", label: "按点赞倒序" }, { value: "created_desc", label: "按时间倒序" }, { value: "created_asc", label: "按时间顺序" }, { value: "correct_desc", label: "按正确数倒序" }, { value: "correct_asc", label: "按正确数顺序" }]} placeholder="排序" virtual={false} />
+                    <div>全体预测条数：{totalCount}</div>
+                    <div>当前学校预测条数：{selectedSchoolId ? (countsBySchool[selectedSchoolId] || 0) : 0}</div>
                     {/* <button onClick={cyclePredFilter} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6 }}>{predFilter === "all" ? "全部数据" : predFilter === "withTime" ? "预测时间" : "不预测时间"}</button> */}
                 </div>
             </div>
@@ -408,6 +445,7 @@ export default function ResultPage() {
                                 <div style={{ display: "grid", gridTemplateColumns: "10fr 2fr", gap: 10 }}>
                                     <div style={{ fontWeight: 700, display: "flex", alignItems: "center", gap: 10 }}>
                                         <span>{group.meta?.name ?? "—"}</span>
+                                        <span style={{ fontSize: 12, color: "#666" }}>预测成功（{(Array.isArray(group.items) ? group.items.filter((it: any) => it?.isCorrect === true).length : 0)}/10）</span>
                                         {(() => {
                                             const bid = group.meta?.batchId as string | null
                                             const count = bid ? (likesMap[bid] || 0) : 0
@@ -464,7 +502,7 @@ export default function ResultPage() {
                                                 cum = cum + (sec ?? 0)
                                                 return (
                                                     <Tooltip key={`f-${it.slot}`} title={<PlayerTooltip student={it.student} playerId={it.playerId} />} styles={{ container: { border: "1px solid #ddd", minWidth: 400 } }} color="#fff">
-                                                        <div style={{ border: "1px solid #ddd", borderRadius: 8, padding: 10, background: "rgba(var(--panel-bg-rgb), var(--panel-opacity))", position: "relative" }}>
+                                                        <div style={{ border: it.isCorrect ? "2px solid #52c41a" : "1px solid #ddd", borderRadius: 8, padding: 10, background: it.isCorrect ? "#f6ffed" : "rgba(var(--panel-bg-rgb), var(--panel-opacity))", position: "relative" }}>
                                                             {compact ? (
                                                                 <>
                                                                     <div style={{ fontSize: 16, fontWeight: 800 }}>{it.slot}区 {slotDistances[it.slot]}km</div>
@@ -521,7 +559,7 @@ export default function ResultPage() {
 
                                                 return (
                                                     <Tooltip key={`r-${it.slot}`} title={<PlayerTooltip student={it.student} playerId={it.playerId} />} styles={{ container: { border: "1px solid #ddd", minWidth: 400 } }} color="#fff">
-                                                        <div style={{ border: "1px solid #ddd", borderRadius: 8, padding: 10, background: "rgba(var(--panel-bg-rgb), var(--panel-opacity))", position: "relative" }}>
+                                                        <div style={{ border: it.isCorrect ? "2px solid #52c41a" : "1px solid #ddd", borderRadius: 8, padding: 10, background: it.isCorrect ? "#f6ffed" : "rgba(var(--panel-bg-rgb), var(--panel-opacity))", position: "relative" }}>
                                                             {compact ? (
                                                                 <>
                                                                     <div style={{ fontSize: 16, fontWeight: 800 }}>{it.slot}区 {slotDistances[it.slot]}km</div>

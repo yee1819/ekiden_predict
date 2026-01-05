@@ -24,6 +24,7 @@ export async function GET(req: Request) {
     score: i.score,
     baseIntervalId: i.Ekiden_th_interval?.ekiden_intervalId,
     intervalName: i.Ekiden_th_interval?.ekiden_interval?.name,
+    isNewRecord: i.isNewRecord === true,
   }))
   await cache.write(name, shaped)
   return NextResponse.json(shaped)

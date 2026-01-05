@@ -10,6 +10,8 @@ export async function GET(req: Request) {
     const schoolName = searchParams.get("schoolName") || undefined
     if (!Number.isFinite(ekidenThId)) return NextResponse.json({ error: "missing ekidenThId" }, { status: 400 })
 
+    const cutoffDate = new Date("2026-01-01T22:00:00Z")
+
     let team: any | null = null
     if (teamIdParam) {
       team = await prisma.ekiden_no_team.findUnique({ where: { id: Number(teamIdParam) } })
@@ -36,7 +38,7 @@ export async function GET(req: Request) {
     const starterByIntervalId = new Map<number, number>()
     starters.forEach(s => starterByIntervalId.set(s.Ekiden_th_intervalId, s.studentId))
 
-    const summaries = await prisma.ekiden_User_Predict_Summary.findMany({ where: { Ekiden_thId: ekidenThId, Ekiden_no_teamId: team.id }, orderBy: { createdAt: "desc" } })
+    const summaries = await prisma.ekiden_User_Predict_Summary.findMany({ where: { Ekiden_thId: ekidenThId, Ekiden_no_teamId: team.id, createdAt: { lte: cutoffDate } }, orderBy: { createdAt: "desc" } })
     const summaryIds = summaries.map(s => s.id)
     const details = summaryIds.length ? await prisma.ekiden_User_Predict_Detail.findMany({ where: { summaryId: { in: summaryIds } }, include: { Ekiden_th_interval: true } }) : []
     const detailsBySummary = new Map<number, any[]>()
@@ -46,17 +48,30 @@ export async function GET(req: Request) {
     const likeCountByBatch: Record<string, number> = {}
     for (const r of likeRows) likeCountByBatch[(r as any).batchId] = (r as any)._count?.batchId || 0
 
+    const actualItems = await prisma.student_ekiden_item.findMany({ where: { Ekiden_thId: ekidenThId, Ekiden_no_teamId: team.id }, select: { Ekiden_th_intervalId: true, studentId: true } })
+    const actualByInterval = new Map<number, number>()
+    actualItems.forEach(a => actualByInterval.set(a.Ekiden_th_intervalId, a.studentId))
+
     const groups = summaries.map(s => {
       const map = new Map<number, number>()
       thIntervals.forEach((ti, idx) => { const starter = starterByIntervalId.get(ti.id); if (starter) map.set(idx + 1, starter) })
       const ds = detailsBySummary.get(s.id) || []
       ds.forEach(d => { const slot = thIntervals.findIndex(ti => ti.id === d.Ekiden_th_intervalId) + 1; if (slot > 0) map.set(slot, d.substitutedStudentId) })
 
-      const items = thIntervals.map((ti, idx) => ({
-        slot: idx + 1,
-        intervalName: intervalNamesMap.get(ti.ekiden_intervalId) || `${idx + 1}区`,
-        playerId: map.get(idx + 1) || null,
-      }))
+      const items = thIntervals.map((ti, idx) => {
+        const playerId = map.get(idx + 1) || null
+        const starterId = starterByIntervalId.get(ti.id)
+        const isSub = starterId != null && playerId != null && playerId !== starterId
+        const actualId = actualByInterval.get(ti.id) || null
+        const isCorrect = Boolean(isSub && actualId != null && playerId != null && actualId === playerId)
+        return {
+          slot: idx + 1,
+          intervalName: intervalNamesMap.get(ti.ekiden_intervalId) || `${idx + 1}区`,
+          playerId,
+          isSub,
+          isCorrect,
+        }
+      })
 
       return {
         items,
@@ -76,26 +91,23 @@ export async function GET(req: Request) {
     students.forEach(s => stuMap.set(s.id, s))
 
     const shaped = groups.map(g => ({
-      items: g.items.map(i => {
-        const starterId = starterByIntervalId.get(thIntervals[i.slot - 1]?.id)
-        const isSub = starterId != null && i.playerId != null && i.playerId !== starterId
-        return {
-          slot: i.slot,
-          intervalName: i.intervalName,
-          playerId: i.playerId,
-          playerName: i.playerId ? (stuMap.get(i.playerId)?.name || null) : null,
-          isSub,
-          student: i.playerId ? {
-            name: stuMap.get(i.playerId)?.name || null,
-            score5000m: stuMap.get(i.playerId)?.score_5000m ?? null,
-            score10000m: stuMap.get(i.playerId)?.score_10000m ?? null,
-            scoreHalf: stuMap.get(i.playerId)?.score_half_marathon ?? null,
-            collegePB: stuMap.get(i.playerId)?.score_college_pb ?? null,
-            entryYear: stuMap.get(i.playerId)?.entryYear ?? null,
-          } : null,
-        }
-      }),
-      meta: g.meta,
+      items: g.items.map(i => ({
+        slot: i.slot,
+        intervalName: i.intervalName,
+        playerId: i.playerId,
+        playerName: i.playerId ? (stuMap.get(i.playerId)?.name || null) : null,
+        isSub: i.isSub,
+        isCorrect: i.isCorrect,
+        student: i.playerId ? {
+          name: stuMap.get(i.playerId)?.name || null,
+          score5000m: stuMap.get(i.playerId)?.score_5000m ?? null,
+          score10000m: stuMap.get(i.playerId)?.score_10000m ?? null,
+          scoreHalf: stuMap.get(i.playerId)?.score_half_marathon ?? null,
+          collegePB: stuMap.get(i.playerId)?.score_college_pb ?? null,
+          entryYear: stuMap.get(i.playerId)?.entryYear ?? null,
+        } : null,
+      })),
+      meta: { ...g.meta, correctCount: g.items.filter((x: any) => x.isCorrect).length },
     }))
 
     const school = await prisma.school.findUnique({ where: { id: team.schoolId } })

@@ -139,12 +139,12 @@ function StudentEkiden({ id, studentID }: { id?: string, studentID?: string }) {
                 const gradeMap: Record<string, number> = { ONE: 1, TWO: 2, THREE: 3, FOUR: 4 }
                 const grades = [1, 2, 3, 4] as number[]
                 const cols: EkidenType[] = ["出雲", "全日本", "箱根"]
-                const lookup = new Map<string, { intervalName?: string; rank?: number; time?: string }>()
+                const lookup = new Map<string, { intervalName?: string; rank?: number; time?: string; isNewRecord?: boolean }>()
                 raw.forEach((it: any) => {
                     const g = gradeMap[String(it.grade)] as number
                     const name = (it.ekidenId === 5 ? "出雲" : it.ekidenId === 4 ? "全日本" : it.ekidenId === 3 ? "箱根" : undefined) as EkidenType | undefined
                     if (!name || !g) return
-                    lookup.set(`${g}-${name}`, { intervalName: it.intervalName, rank: typeof it.rank === "number" ? it.rank : undefined, time: typeof it.score === "number" ? formatSeconds(it.score) : undefined })
+                    lookup.set(`${g}-${name}`, { intervalName: it.intervalName, rank: typeof it.rank === "number" ? it.rank : undefined, time: typeof it.score === "number" ? formatSeconds(it.score) : undefined, isNewRecord: it?.isNewRecord === true })
                 })
                 return (
                     <div style={{ marginTop: 12 }}>
@@ -160,7 +160,7 @@ function StudentEkiden({ id, studentID }: { id?: string, studentID?: string }) {
                                         const rec = lookup.get(`${g}-${c}`)
                                         const text = rec?.intervalName ? `${rec.intervalName}${rec?.rank ? ` ${rec.rank}位` : ""}${rec?.time ? ` ${rec.time}` : ""}` : "—"
                                         return (
-                                            <div key={`${g}-${c}`} style={{ padding: 6, borderTop: "1px solid #eee", textAlign: "center", background: cellBgRank(rec?.rank) }}>{text}</div>
+                                            <div key={`${g}-${c}`} style={{ padding: 6, borderTop: "1px solid #eee", textAlign: "center", background: cellBgRank(rec?.rank) }}>{rec?.isNewRecord ? <span style={{ color: "red", marginRight: 2 }}>新</span> : null}{text}</div>
                                         )
                                     })
                                 ]

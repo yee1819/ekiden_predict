@@ -4,6 +4,8 @@ import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { Select, message, Tooltip, Segmented, Modal, Input } from "antd"
 import { fetchPublicOrApi } from "@/app/lib/public-cache"
 
+// import { message  } from "antd"
+
 type EkidenType = "出雲" | "全日本" | "箱根"
 type Grade = 1 | 2 | 3 | 4
 type EntryRecord = { ekiden: EkidenType; grade: Grade; intervalName?: string; rank?: number; symbol?: "○" | "△" | "—"; dnf?: boolean; time?: string; year?: number; runner?: string; runnerGrade?: number }
@@ -40,6 +42,16 @@ export default function FinalPredictPage() {
   const [metric, setMetric] = useState<"5000m" | "10000m" | "半马">("5000m")
   const [showSubmit, setShowSubmit] = useState<boolean>(false)
   const [submitting, setSubmitting] = useState<boolean>(false)
+
+
+  const [messageApi, contextHolder] = message.useMessage();
+  const info = () => {
+    messageApi.open({
+      type: 'info',
+      content: '今年箱根已结束',
+      duration: 10,
+    });
+  };
 
   useEffect(() => {
     ; (async () => {
@@ -355,6 +367,8 @@ export default function FinalPredictPage() {
       return undefined
     }
     return (
+
+
       <div style={{ border: "1px solid #969696" }}>
         <div style={{ background: "#fffa9f", padding: 6, fontWeight: 600 }}>駅伝エントリー</div>
         <div style={{ display: "grid", gridTemplateColumns: "60px repeat(3, minmax(8ch, 1fr))", gap: 0 }}>
@@ -459,14 +473,20 @@ export default function FinalPredictPage() {
     return Math.round(secs.reduce((a, b) => a + b, 0) / secs.length)
   }, [leaderboard, metric])
 
-  return (
+  return (<>
+
+    {contextHolder}
     <div style={{ padding: 16, maxWidth: 1200, margin: "0 auto" }}>
 
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <h1 style={{ fontSize: 18, fontWeight: 700 }}>最终首发替换</h1>
         <div style={{ flex: 1 }} />
         <button onClick={resetAll} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6 }}>清空</button>
-        <button onClick={submitSummary} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6 }}>提交</button>
+        <button
+          // disabled 
+          // onClick={submitSummary}
+          onClick={info}
+          style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6 }}>提交</button>
       </div>
 
       <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 12 }}>
@@ -700,5 +720,7 @@ export default function FinalPredictPage() {
         </div>
       </Modal>
     </div>
+
+  </>
   )
 }

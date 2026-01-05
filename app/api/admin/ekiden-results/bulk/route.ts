@@ -17,12 +17,12 @@ export async function POST(req: Request) {
   const team = await prisma.ekiden_no_team.findUnique({ where: { id: Number(data.Ekiden_no_teamId) }, include: { Ekiden_th: true } })
   if (!team) return NextResponse.json({ error: "team not found" }, { status: 400 })
   const th = team.Ekiden_th
-  const entries: Array<{ Ekiden_th_intervalId?: number, ekiden_intervalId?: number, studentId: number, score: number, rank?: number }> = Array.isArray(data.entries) ? data.entries : []
+  const entries: Array<{ Ekiden_th_intervalId?: number, ekiden_intervalId?: number, studentId: number, score: number, rank?: number, isNewRecord?: boolean }> = Array.isArray(data.entries) ? data.entries : []
   if (entries.length === 0) return NextResponse.json({ error: "empty entries" }, { status: 400 })
   const thIntervalRows = await prisma.ekiden_th_interval.findMany({ where: { Ekiden_thId: th.id }, select: { id: true, ekiden_intervalId: true } })
   const validThIds = new Set(thIntervalRows.map(x => x.id))
   const thByBase = new Map(thIntervalRows.map(x => [x.ekiden_intervalId, x.id]))
-  const prepared: Array<{ intervalId: number, studentId: number, score: number, rank: number, grade: "ONE" | "TWO" | "THREE" | "FOUR" }> = []
+  const prepared: Array<{ intervalId: number, studentId: number, score: number, rank: number, grade: "ONE" | "TWO" | "THREE" | "FOUR", isNewRecord: boolean }> = []
   for (const e of entries) {
     let thIntervalId: number | undefined = e.Ekiden_th_intervalId != null ? Number(e.Ekiden_th_intervalId) : undefined
     const baseId: number | undefined = e.ekiden_intervalId != null ? Number(e.ekiden_intervalId) : undefined
@@ -40,13 +40,13 @@ export async function POST(req: Request) {
     const s = await prisma.student.findUnique({ where: { id: Number(e.studentId) } })
     if (!s) return NextResponse.json({ error: `student ${e.studentId} not found` }, { status: 400 })
     if (s.schoolId !== team.schoolId) return NextResponse.json({ error: `student ${e.studentId} not in team school` }, { status: 400 })
-    prepared.push({ intervalId: thIntervalId, studentId: Number(e.studentId), score: Number(e.score), rank: Number(e.rank ?? 0), grade: computeGrade(s.entryYear ?? null, th.year) })
+    prepared.push({ intervalId: thIntervalId, studentId: Number(e.studentId), score: Number(e.score), rank: Number(e.rank ?? 0), grade: computeGrade(s.entryYear ?? null, th.year), isNewRecord: e.isNewRecord === true })
   }
   try {
     const created = await prisma.$transaction(prepared.map(e => prisma.student_ekiden_item.upsert({
       where: { Ekiden_th_intervalId_Ekiden_no_teamId: { Ekiden_th_intervalId: e.intervalId, Ekiden_no_teamId: team.id } },
-      update: { score: e.score, rank: e.rank, studentId: e.studentId, grade: e.grade },
-      create: { score: e.score, rank: e.rank, grade: e.grade, Ekiden_th_intervalId: e.intervalId, Ekiden_no_teamId: team.id, Ekiden_thId: th.id, studentId: e.studentId }
+      update: { score: e.score, rank: e.rank, studentId: e.studentId, grade: e.grade, isNewRecord: e.isNewRecord },
+      create: { score: e.score, rank: e.rank, grade: e.grade, Ekiden_th_intervalId: e.intervalId, Ekiden_no_teamId: team.id, Ekiden_thId: th.id, studentId: e.studentId, isNewRecord: e.isNewRecord }
     })))
     return NextResponse.json({ upserted: created.length })
   } catch (err: any) {

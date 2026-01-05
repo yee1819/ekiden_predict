@@ -39,6 +39,16 @@ export default function SummaryPage() {
   const exportRef = React.useRef<HTMLDivElement>(null)
   const rightRef = React.useRef<HTMLDivElement>(null)
 
+  const [messageApi, contextHolder] = message.useMessage();
+  const info = () => {
+    messageApi.open({
+      type: 'info',
+      content: '今年箱根已结束',
+      duration: 10,
+    });
+  };
+
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem("hakone_summary")
@@ -345,170 +355,177 @@ export default function SummaryPage() {
   }
 
   return (
-    <div style={{ padding: 16, maxWidth: 1200, overflowX: "auto", margin: "0 auto" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <h1 style={{ fontSize: 18 }}>{`第${params?.th ?? ""}回 ${data?.school ?? ""} 完成分配`}</h1>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          {allHavePredict && (<div style={{ fontSize: 14 }}>总预测：{formatSeconds(totalSec)}</div>)}
-          <button onClick={submitSummary} style={{ padding: "4px 10px", border: "1px solid #ccc", borderRadius: 6, background: "#fff" }}>提交</button>
-          <button onClick={exportIntervalsImage} style={{ padding: "4px 10px", border: "1px solid #ccc", borderRadius: 6, background: "#fff" }}>导出区间图片</button>
-          <button onClick={exportImage} style={{ padding: "4px 10px", border: "1px solid #ccc", borderRadius: 6, background: "#fff" }}>导出图片</button>
-        </div>
-      </div>
 
-      <div ref={exportRef} className="summaryMain" style={{ display: "flex", alignItems: "flex-start", gap: 10, flexDirection: "row" }}>
-        <div ref={leftRef} style={{ flex: "0 0 45%", minWidth: 0 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <strong>往路（1-5区）</strong>
-                {allHavePredict && <span style={{ fontSize: 12, color: "#555" }}>总计：{formatSeconds(forwardTotal)}</span>}
-              </div>
-              <div style={{ display: "grid", gap: 10 }}>
-                {forwardWithCum.map((it: any) => {
-                  const scores = (it.playerId ? data.playerScores?.[it.playerId] : undefined)
-                  const compact = !allHavePredict
-                  return (
-                    <Tooltip key={`f-${it.slot}`} title={<EntriesTooltip playerId={it.playerId} />} color="#fff" styles={{ container: { border: "2px solid #020202", minWidth: 400 } }}>
-                      <div style={{ border: "1px solid #ddd", borderRadius: 8, padding: 10, background: "rgba(var(--panel-bg-rgb), var(--panel-opacity))", position: "relative" }}>
-                        {compact ? (
-                          <>
-                            <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-                              <span style={{ fontSize: 16, fontWeight: 800 }}>{it.slot}区</span>
-                              <span style={{ fontSize: 12, color: "#666", marginTop: -2 }}>{slotDistances[it.slot]}km</span>
-                            </div>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginTop: 6 }}>
-                              <div style={{ fontSize: 24, fontWeight: 900 }}>{it.playerName ?? "—"}</div>
-                              <div style={{ textAlign: "right", fontSize: 13, color: "#111", fontWeight: 600 }}>
-                                <div>5000：{formatPBText(scores?.score5000m, "5000")}</div>
-                                <div>10000：{formatPBText(scores?.score10000m, "10000")}</div>
-                                <div>半马：{formatPBText(scores?.scoreHalf, "half")}</div>
-                              </div>
-                            </div>
-                          </>
-                        ) : (
-                          <div style={{ position: "absolute", top: 6, right: 10, textAlign: "right" }}>
-                            <div style={{ fontSize: 24, fontWeight: 900 }}>{it.playerName ?? "—"}</div>
-                            <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>5000 {formatPBText(scores?.score5000m, "5000")}</div>
-                            <div style={{ fontSize: 12, color: "#555" }}>10000 {formatPBText(scores?.score10000m, "10000")}</div>
-                            <div style={{ fontSize: 12, color: "#555" }}>半马 {formatPBText(scores?.scoreHalf, "half")}</div>
-                          </div>
-                        )}
-                        {!compact && (
-                          <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-                            <span style={{ fontSize: 16, fontWeight: 800 }}>{it.slot}区</span>
-                            <span style={{ fontSize: 12, color: "#666", marginTop: -2 }}>{slotDistances[it.slot]}km</span>
-                          </div>
-                        )}
-                        {!compact && (
-                          <>
-                            <div style={{ fontSize: 28, fontWeight: 900, letterSpacing: 1 }}>{formatSeconds(it.predictSec)}</div>
-                            <div style={{ fontSize: 14, color: "#666" }}>配速：{formatPace(it.predictSec, slotDistances[it.slot])}</div>
-                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginTop: 6 }}>
-                              <span>往路累计 {formatSeconds(it.cum)}</span>
-                              <span>总时间 {formatSeconds(it.cum)}</span>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </Tooltip>
-                  )
-                })}
-              </div>
-            </div>
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                <strong>复路（6-10区）</strong>
-                {allHavePredict && <span style={{ fontSize: 12, color: "#555" }}>总计：{formatSeconds(returnTotal)}</span>}
-              </div>
-              <div style={{ display: "grid", gap: 10 }}>
-                {returnWithCum.map((it: any) => {
-                  const scores = (it.playerId ? data.playerScores?.[it.playerId] : undefined)
-                  const compact = !allHavePredict
-                  return (
-                    <Tooltip key={`r-${it.slot}`} title={<EntriesTooltip playerId={it.playerId} />} color="#fff" styles={{ container: { border: "2px solid #000000", minWidth: 400 } }}>
-                      <div style={{ border: "1px solid #ddd", borderRadius: 8, padding: 10, background: "rgba(var(--panel-bg-rgb), var(--panel-opacity))", position: "relative" }}>
-                        {compact ? (
-                          <>
-                            <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-                              <span style={{ fontSize: 16, fontWeight: 800 }}>{it.slot}区</span>
-                              <span style={{ fontSize: 12, color: "#666", marginTop: -2 }}>{slotDistances[it.slot]}km</span>
-                            </div>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginTop: 6 }}>
-                              <div style={{ fontSize: 24, fontWeight: 900 }}>{it.playerName ?? "—"}</div>
-                              <div style={{ textAlign: "right", fontSize: 13, color: "#111", fontWeight: 600 }}>
-                                <div>5000：{formatPBText(scores?.score5000m, "5000")}</div>
-                                <div>10000：{formatPBText(scores?.score10000m, "10000")}</div>
-                                <div>半马：{formatPBText(scores?.scoreHalf, "half")}</div>
-                              </div>
-                            </div>
-                          </>
-                        ) : (
-                          <div style={{ position: "absolute", top: 6, right: 10, textAlign: "right" }}>
-                            <div style={{ fontSize: 24, fontWeight: 900 }}>{it.playerName ?? "—"}</div>
-                            <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>5000 {formatPBText(scores?.score5000m, "5000")}</div>
-                            <div style={{ fontSize: 12, color: "#555" }}>10000 {formatPBText(scores?.score10000m, "10000")}</div>
-                            <div style={{ fontSize: 12, color: "#555" }}>半马 {formatPBText(scores?.scoreHalf, "half")}</div>
-                          </div>
-                        )}
-                        {!compact && (
-                          <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
-                            <span style={{ fontSize: 16, fontWeight: 800 }}>{it.slot}区</span>
-                            <span style={{ fontSize: 12, color: "#666", marginTop: -2 }}>{slotDistances[it.slot]}km</span>
-                          </div>
-                        )}
-                        {!compact && (
-                          <>
-                            <div style={{ fontSize: 28, fontWeight: 900, letterSpacing: 1 }}>{formatSeconds(it.predictSec)}</div>
-                            <div style={{ fontSize: 14, color: "#666" }}>配速：{formatPace(it.predictSec, slotDistances[it.slot])}</div>
-                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginTop: 6 }}>
-                              <span>复路累计 {formatSeconds(it.cum)}</span>
-                              <span>总时间 {formatSeconds(forwardTotal + it.cum)}</span>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </Tooltip>
-                  )
-                })}
-              </div>
-            </div>
+    <>
+      {contextHolder}
+      <div style={{ padding: 16, maxWidth: 1200, overflowX: "auto", margin: "0 auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <h1 style={{ fontSize: 18 }}>{`第${params?.th ?? ""}回 ${data?.school ?? ""} 完成分配`}</h1>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {allHavePredict && (<div style={{ fontSize: 14 }}>总预测：{formatSeconds(totalSec)}</div>)}
+            <button
+              // onClick={submitSummary}
+              onClick={info}
+              style={{ padding: "4px 10px", border: "1px solid #ccc", borderRadius: 6, background: "#fff" }}>提交</button>
+            <button onClick={exportIntervalsImage} style={{ padding: "4px 10px", border: "1px solid #ccc", borderRadius: 6, background: "#fff" }}>导出区间图片</button>
+            <button onClick={exportImage} style={{ padding: "4px 10px", border: "1px solid #ccc", borderRadius: 6, background: "#fff" }}>导出图片</button>
           </div>
         </div>
-        <div className="mobileSeparator" />
-        <div ref={rightRef} style={{ flex: "1 0 55%", maxWidth: "55%", height: (rightHeight ? rightHeight : undefined) }}>
-          <div style={{ border: "1px solid #ddd", borderRadius: 8, background: "#fff", padding: 12, height: "100%", display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ fontWeight: 600, marginBottom: 6 }}>阵容看法</div>
-              <button onClick={() => setShowPreview(v => !v)} style={{ padding: "4px 8px", border: "1px solid #ccc", borderRadius: 6 }}>{showPreview ? "隐藏预览" : "查看预览"}</button>
-            </div>
-            {showPreview ? (
-              <div style={{ display: "flex", gap: 8, height: "100%", flexDirection: "row" }}>
-                <Input.TextArea value={opinion} onChange={e => saveOpinion(e.target.value)} placeholder="写下你的阵容观点、策略与理由（支持 Markdown）" style={{ flex: "1 0 50%", height: "100%", overflowY: "auto", resize: "none" }} />
-                <div style={{ flex: "1 0 50%", height: "100%", overflowY: "auto", border: "1px solid #eee", borderRadius: 8, padding: 10 }}>
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{opinion}</ReactMarkdown>
+
+        <div ref={exportRef} className="summaryMain" style={{ display: "flex", alignItems: "flex-start", gap: 10, flexDirection: "row" }}>
+          <div ref={leftRef} style={{ flex: "0 0 45%", minWidth: 0 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <strong>往路（1-5区）</strong>
+                  {allHavePredict && <span style={{ fontSize: 12, color: "#555" }}>总计：{formatSeconds(forwardTotal)}</span>}
+                </div>
+                <div style={{ display: "grid", gap: 10 }}>
+                  {forwardWithCum.map((it: any) => {
+                    const scores = (it.playerId ? data.playerScores?.[it.playerId] : undefined)
+                    const compact = !allHavePredict
+                    return (
+                      <Tooltip key={`f-${it.slot}`} title={<EntriesTooltip playerId={it.playerId} />} color="#fff" styles={{ container: { border: "2px solid #020202", minWidth: 400 } }}>
+                        <div style={{ border: "1px solid #ddd", borderRadius: 8, padding: 10, background: "rgba(var(--panel-bg-rgb), var(--panel-opacity))", position: "relative" }}>
+                          {compact ? (
+                            <>
+                              <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                                <span style={{ fontSize: 16, fontWeight: 800 }}>{it.slot}区</span>
+                                <span style={{ fontSize: 12, color: "#666", marginTop: -2 }}>{slotDistances[it.slot]}km</span>
+                              </div>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginTop: 6 }}>
+                                <div style={{ fontSize: 24, fontWeight: 900 }}>{it.playerName ?? "—"}</div>
+                                <div style={{ textAlign: "right", fontSize: 13, color: "#111", fontWeight: 600 }}>
+                                  <div>5000：{formatPBText(scores?.score5000m, "5000")}</div>
+                                  <div>10000：{formatPBText(scores?.score10000m, "10000")}</div>
+                                  <div>半马：{formatPBText(scores?.scoreHalf, "half")}</div>
+                                </div>
+                              </div>
+                            </>
+                          ) : (
+                            <div style={{ position: "absolute", top: 6, right: 10, textAlign: "right" }}>
+                              <div style={{ fontSize: 24, fontWeight: 900 }}>{it.playerName ?? "—"}</div>
+                              <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>5000 {formatPBText(scores?.score5000m, "5000")}</div>
+                              <div style={{ fontSize: 12, color: "#555" }}>10000 {formatPBText(scores?.score10000m, "10000")}</div>
+                              <div style={{ fontSize: 12, color: "#555" }}>半马 {formatPBText(scores?.scoreHalf, "half")}</div>
+                            </div>
+                          )}
+                          {!compact && (
+                            <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                              <span style={{ fontSize: 16, fontWeight: 800 }}>{it.slot}区</span>
+                              <span style={{ fontSize: 12, color: "#666", marginTop: -2 }}>{slotDistances[it.slot]}km</span>
+                            </div>
+                          )}
+                          {!compact && (
+                            <>
+                              <div style={{ fontSize: 28, fontWeight: 900, letterSpacing: 1 }}>{formatSeconds(it.predictSec)}</div>
+                              <div style={{ fontSize: 14, color: "#666" }}>配速：{formatPace(it.predictSec, slotDistances[it.slot])}</div>
+                              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginTop: 6 }}>
+                                <span>往路累计 {formatSeconds(it.cum)}</span>
+                                <span>总时间 {formatSeconds(it.cum)}</span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </Tooltip>
+                    )
+                  })}
                 </div>
               </div>
-            ) : (
-              <Input.TextArea value={opinion} onChange={e => saveOpinion(e.target.value)} rows={10} placeholder="写下你的阵容观点、策略与理由（支持 Markdown）" style={{ flex: "1 0 auto", height: "100%", overflowY: "auto", resize: "none" }} />
-            )}
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                  <strong>复路（6-10区）</strong>
+                  {allHavePredict && <span style={{ fontSize: 12, color: "#555" }}>总计：{formatSeconds(returnTotal)}</span>}
+                </div>
+                <div style={{ display: "grid", gap: 10 }}>
+                  {returnWithCum.map((it: any) => {
+                    const scores = (it.playerId ? data.playerScores?.[it.playerId] : undefined)
+                    const compact = !allHavePredict
+                    return (
+                      <Tooltip key={`r-${it.slot}`} title={<EntriesTooltip playerId={it.playerId} />} color="#fff" styles={{ container: { border: "2px solid #000000", minWidth: 400 } }}>
+                        <div style={{ border: "1px solid #ddd", borderRadius: 8, padding: 10, background: "rgba(var(--panel-bg-rgb), var(--panel-opacity))", position: "relative" }}>
+                          {compact ? (
+                            <>
+                              <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                                <span style={{ fontSize: 16, fontWeight: 800 }}>{it.slot}区</span>
+                                <span style={{ fontSize: 12, color: "#666", marginTop: -2 }}>{slotDistances[it.slot]}km</span>
+                              </div>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginTop: 6 }}>
+                                <div style={{ fontSize: 24, fontWeight: 900 }}>{it.playerName ?? "—"}</div>
+                                <div style={{ textAlign: "right", fontSize: 13, color: "#111", fontWeight: 600 }}>
+                                  <div>5000：{formatPBText(scores?.score5000m, "5000")}</div>
+                                  <div>10000：{formatPBText(scores?.score10000m, "10000")}</div>
+                                  <div>半马：{formatPBText(scores?.scoreHalf, "half")}</div>
+                                </div>
+                              </div>
+                            </>
+                          ) : (
+                            <div style={{ position: "absolute", top: 6, right: 10, textAlign: "right" }}>
+                              <div style={{ fontSize: 24, fontWeight: 900 }}>{it.playerName ?? "—"}</div>
+                              <div style={{ fontSize: 12, color: "#555", marginTop: 4 }}>5000 {formatPBText(scores?.score5000m, "5000")}</div>
+                              <div style={{ fontSize: 12, color: "#555" }}>10000 {formatPBText(scores?.score10000m, "10000")}</div>
+                              <div style={{ fontSize: 12, color: "#555" }}>半马 {formatPBText(scores?.scoreHalf, "half")}</div>
+                            </div>
+                          )}
+                          {!compact && (
+                            <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                              <span style={{ fontSize: 16, fontWeight: 800 }}>{it.slot}区</span>
+                              <span style={{ fontSize: 12, color: "#666", marginTop: -2 }}>{slotDistances[it.slot]}km</span>
+                            </div>
+                          )}
+                          {!compact && (
+                            <>
+                              <div style={{ fontSize: 28, fontWeight: 900, letterSpacing: 1 }}>{formatSeconds(it.predictSec)}</div>
+                              <div style={{ fontSize: 14, color: "#666" }}>配速：{formatPace(it.predictSec, slotDistances[it.slot])}</div>
+                              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginTop: 6 }}>
+                                <span>复路累计 {formatSeconds(it.cum)}</span>
+                                <span>总时间 {formatSeconds(forwardTotal + it.cum)}</span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </Tooltip>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="mobileSeparator" />
+          <div ref={rightRef} style={{ flex: "1 0 55%", maxWidth: "55%", height: (rightHeight ? rightHeight : undefined) }}>
+            <div style={{ border: "1px solid #ddd", borderRadius: 8, background: "#fff", padding: 12, height: "100%", display: "flex", flexDirection: "column" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div style={{ fontWeight: 600, marginBottom: 6 }}>阵容看法</div>
+                <button onClick={() => setShowPreview(v => !v)} style={{ padding: "4px 8px", border: "1px solid #ccc", borderRadius: 6 }}>{showPreview ? "隐藏预览" : "查看预览"}</button>
+              </div>
+              {showPreview ? (
+                <div style={{ display: "flex", gap: 8, height: "100%", flexDirection: "row" }}>
+                  <Input.TextArea value={opinion} onChange={e => saveOpinion(e.target.value)} placeholder="写下你的阵容观点、策略与理由（支持 Markdown）" style={{ flex: "1 0 50%", height: "100%", overflowY: "auto", resize: "none" }} />
+                  <div style={{ flex: "1 0 50%", height: "100%", overflowY: "auto", border: "1px solid #eee", borderRadius: 8, padding: 10 }}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{opinion}</ReactMarkdown>
+                  </div>
+                </div>
+              ) : (
+                <Input.TextArea value={opinion} onChange={e => saveOpinion(e.target.value)} rows={10} placeholder="写下你的阵容观点、策略与理由（支持 Markdown）" style={{ flex: "1 0 auto", height: "100%", overflowY: "auto", resize: "none" }} />
+              )}
+            </div>
           </div>
         </div>
-      </div>
-      {allHavePredict && <div style={{ marginTop: 12, fontSize: 14 }}>综合成绩：{formatSeconds(forwardTotal + returnTotal)}</div>}
-      <Modal open={showSubmit} onCancel={() => setShowSubmit(false)} onOk={doSubmit} okText="提交" cancelText="取消" confirmLoading={submitting}>
-        <div style={{ display: "grid", gap: 8 }}>
-          <div>请输入你的昵称：</div>
-          <Input value={nickname} onChange={e => setNickname(e.target.value)} placeholder="昵称" />
-        </div>
-      </Modal>
-      <style jsx>{`
+        {allHavePredict && <div style={{ marginTop: 12, fontSize: 14 }}>综合成绩：{formatSeconds(forwardTotal + returnTotal)}</div>}
+        <Modal open={showSubmit} onCancel={() => setShowSubmit(false)} onOk={doSubmit} okText="提交" cancelText="取消" confirmLoading={submitting}>
+          <div style={{ display: "grid", gap: 8 }}>
+            <div>请输入你的昵称：</div>
+            <Input value={nickname} onChange={e => setNickname(e.target.value)} placeholder="昵称" />
+          </div>
+        </Modal>
+        <style jsx>{`
         .mobileSeparator { display: none; }
         @media (max-width: 768px) {
           .summaryMain { flex-direction: column; }
           .mobileSeparator { display: block; height: 1px; background: #eee; margin: 12px 0; }
         }
       `}</style>
-    </div>
+      </div>
+    </>
   )
 }

@@ -29,7 +29,7 @@ export default function FinalPredictSummaryPage() {
   const [likesMap, setLikesMap] = useState<Record<string, number>>({})
   const [likedSet, setLikedSet] = useState<Set<string>>(new Set())
   const [popBatchId, setPopBatchId] = useState<string | null>(null)
-  const [sortBy, setSortBy] = useState<"created_desc" | "created_asc" | "likes_desc" | "likes_asc">("created_desc")
+  const [sortBy, setSortBy] = useState<"created_desc" | "created_asc" | "likes_desc" | "likes_asc" | "correct_desc" | "correct_asc">("created_desc")
   const [entriesById, setEntriesById] = useState<Record<number, any[]>>({})
   const [ekidenIdToName, setEkidenIdToName] = useState<Record<number, "出雲" | "全日本" | "箱根" | undefined>>({})
   const [totalCount, setTotalCount] = useState<number>(0)
@@ -73,28 +73,26 @@ export default function FinalPredictSummaryPage() {
 
   useEffect(() => {
     ; (async () => {
-      const ekidensData = await fetchPublicOrApi<any[]>("public-ekidens", "all", "/api/ekidens")
+      const all = await fetchPublicOrApi<any>("all-bundle", "v1", "/api/bundle/all")
+      const ekidensData = Array.isArray(all?.ekidens) ? all.ekidens : []
       const idNameMap: Record<number, "出雲" | "全日本" | "箱根" | undefined> = {}
       ekidensData.forEach((e: any) => { if (e?.name === "出雲" || e?.name === "全日本" || e?.name === "箱根") idNameMap[e.id] = e.name })
       setEkidenIdToName(idNameMap)
       const hakone = ekidensData.find((e: any) => e.name === "箱根")
       if (!hakone) return
-      const eds = await fetchPublicOrApi<any[]>("public-editions", Number(hakone.id), `/api/editions?ekidenId=${hakone.id}`)
+      const eds = Array.isArray(all?.editions) ? all.editions : []
       const ed = eds.find((x: any) => String(x.ekiden_th) === String(params?.th ?? ""))
       if (ed) { setEkidenThId(ed.id); setEventYear(Number(ed.year)) }
-      setSchools(await fetchPublicOrApi<any[]>("public-schools", "all", "/api/schools"))
+      setSchools(Array.isArray(all?.schools) ? all.schools : [])
     })()
   }, [params?.th])
 
   useEffect(() => {
     ; (async () => {
       if (!ekidenThId) return
-      const tlist = await fetchPublicOrApi<any[]>("public-teams", Number(ekidenThId), `/api/teams?Ekiden_thId=${ekidenThId}`)
+      const hb = await fetchPublicOrApi<any>("hakone-bundle", Number(ekidenThId), `/api/predict/hakone/bundle?ekidenThId=${ekidenThId}`)
+      const tlist = Array.isArray(hb?.teams) ? hb.teams : []
       setTeams(tlist)
-      if (!selectedSchoolId && tlist.length) {
-        const t0 = tlist[tlist.length - 1]
-        setSelectedSchoolId(t0.schoolId)
-      }
     })()
   }, [ekidenThId])
 
@@ -118,20 +116,26 @@ export default function FinalPredictSummaryPage() {
   useEffect(() => {
     ; (async () => {
       if (!ekidenThId) return
-      const list = filteredSchools
-      if (!list.length) { setCountsBySchool({}); return }
-      try {
-        const entries = await Promise.all(list.map(async (s: any) => {
-          try {
-            const res = await fetch(`/api/predict/hakone/final/count?ekidenThId=${ekidenThId}&schoolId=${s.id}`)
-            const j = res.ok ? await res.json() : {}
-            return [s.id, Number(j?.count || 0)] as [number, number]
-          } catch { return [s.id, 0] as [number, number] }
-        }))
-        setCountsBySchool(Object.fromEntries(entries))
-      } catch { setCountsBySchool({}) }
+      const teamSchoolIds = teams.map((t: any) => t.schoolId)
+      if (teamSchoolIds.length) {
+        const cj = await fetch(`/api/predict/hakone/final/count?ekidenThId=${ekidenThId}&schoolIds=${teamSchoolIds.join(',')}`).then(r => r.ok ? r.json() : {})
+        const map = (cj?.countsBySchoolId || {}) as Record<number, number>
+        setCountsBySchool(map)
+      } else {
+        setCountsBySchool({})
+      }
+      const tj = await fetch(`/api/predict/hakone/final/count?ekidenThId=${ekidenThId}`).then(r => r.ok ? r.json() : {})
+      setTotalCount(Number(tj?.count || 0))
     })()
-  }, [ekidenThId, filteredSchools])
+  }, [ekidenThId, teams])
+
+  useEffect(() => {
+    if (!selectedSchoolId && teams.length) {
+      const withData = teams.filter((t: any) => (countsBySchool[t.schoolId] || 0) > 0)
+      const pick = withData.length ? withData[withData.length - 1] : teams[teams.length - 1]
+      if (pick) setSelectedSchoolId(pick.schoolId)
+    }
+  }, [teams, countsBySchool, selectedSchoolId])
 
   useEffect(() => {
     ; (async () => {
@@ -139,28 +143,22 @@ export default function FinalPredictSummaryPage() {
       if (!ekidenThId || !selectedSchoolId) return
       const team = teams.find((t: any) => t.schoolId === selectedSchoolId)
       if (!team) { setLoading(false); return }
+      const lj = await fetch(`/api/predict/hakone/final/list?ekidenThId=${ekidenThId}&schoolId=${selectedSchoolId}`).then(r => r.ok ? r.json() : { groups: [], meta: {} })
+      const gs = Array.isArray(lj?.groups) ? lj.groups : []
+      setGroups(gs)
+      setSchoolName(String(lj?.meta?.schoolName || ""))
+      const tid = Number(lj?.meta?.teamId || team.id)
+      setTeamId(tid)
+      const lmap: Record<string, number> = {}
+      for (const g of gs) {
+        const bid = g?.meta?.batchId
+        const cnt = g?.meta?.likeCount
+        if (bid) lmap[bid] = Number(cnt || 0)
+      }
+      setLikesMap(lmap)
+      setTeamCount(Number(countsBySchool[selectedSchoolId] || 0))
       try {
-        const totalRes = await fetch(`/api/predict/hakone/final/count?ekidenThId=${ekidenThId}`)
-        const total = totalRes.ok ? await totalRes.json() : {}
-        setTotalCount(Number(total?.count || 0))
-      } catch { setTotalCount(0) }
-      try {
-        const teamRes = await fetch(`/api/predict/hakone/final/count?ekidenThId=${ekidenThId}&schoolId=${selectedSchoolId}`)
-        const tcnt = teamRes.ok ? await teamRes.json() : {}
-        setTeamCount(Number(tcnt?.count || 0))
-      } catch { setTeamCount(0) }
-      const res = await fetch(`/api/predict/hakone/final/list?ekidenThId=${ekidenThId}&ekiden_no_teamId=${team.id}`)
-      const j = await res.json()
-      setGroups(j?.groups || [])
-      setSchoolName(j?.meta?.schoolName || "")
-      setTeamId(j?.meta?.teamId)
-      try {
-        const lk = await fetch(`/api/predict/hakone/likes?ekidenThId=${ekidenThId}&teamId=${team.id}`)
-        const lj = await lk.json()
-        setLikesMap(lj?.likes || {})
-      } catch { }
-      try {
-        const idRaw = (j?.groups || []).flatMap((g: any) => g.items.map((it: any) => it.playerId))
+        const idRaw = (Array.isArray(j2?.groups) ? j2.groups : []).flatMap((g: any) => g.items.map((it: any) => it.playerId))
         const ids = Array.from(new Set(idRaw)).filter((id): id is number => Number.isFinite(id as number))
         if (ids.length) {
           const ent = await fetchPublicOrApi<any[]>("public-student-entries", ids.slice().sort((a, b) => a - b), `/api/student-entries?studentIds=${ids.join(',')}`)
@@ -190,6 +188,8 @@ export default function FinalPredictSummaryPage() {
     if (sortBy === "likes_desc") arr.sort((a: any, b: any) => (likesMap[b?.meta?.batchId || ""] || 0) - (likesMap[a?.meta?.batchId || ""] || 0))
     else if (sortBy === "likes_asc") arr.sort((a: any, b: any) => (likesMap[a?.meta?.batchId || ""] || 0) - (likesMap[b?.meta?.batchId || ""] || 0))
     else if (sortBy === "created_asc") arr.sort((a: any, b: any) => new Date(a?.meta?.createdAt || 0).getTime() - new Date(b?.meta?.createdAt || 0).getTime())
+    else if (sortBy === "correct_desc") arr.sort((a: any, b: any) => ((b?.meta?.correctCount ?? (Array.isArray(b?.items) ? b.items.filter((it: any) => it?.isCorrect === true).length : 0)) - (a?.meta?.correctCount ?? (Array.isArray(a?.items) ? a.items.filter((it: any) => it?.isCorrect === true).length : 0))))
+    else if (sortBy === "correct_asc") arr.sort((a: any, b: any) => ((a?.meta?.correctCount ?? (Array.isArray(a?.items) ? a.items.filter((it: any) => it?.isCorrect === true).length : 0)) - (b?.meta?.correctCount ?? (Array.isArray(b?.items) ? b.items.filter((it: any) => it?.isCorrect === true).length : 0))))
     else arr.sort((a: any, b: any) => new Date(b?.meta?.createdAt || 0).getTime() - new Date(a?.meta?.createdAt || 0).getTime())
     return arr
   }, [filteredGroups, likesMap, sortBy])
@@ -315,6 +315,8 @@ export default function FinalPredictSummaryPage() {
               <option value="created_asc">创建时间升序</option>
               <option value="likes_desc">点赞降序</option>
               <option value="likes_asc">点赞升序</option>
+              <option value="correct_desc">预测准确数降序</option>
+              <option value="correct_asc">预测准确数升序</option>
             </select>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginLeft: 8, fontSize: 12 }}>
@@ -351,6 +353,7 @@ export default function FinalPredictSummaryPage() {
                     }
                     return (
                       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                        <div style={{ fontSize: 12, color: "#666" }}>预测成功（{(Array.isArray(group.items) ? group.items.filter((it: any) => it?.isCorrect === true).length : 0)}）</div>
                         <div style={{ fontSize: 14, color: "#555" }}>{group.meta?.createdAt ? new Date(group.meta.createdAt).toLocaleString() : "—"}</div>
                         {bid ? (
                           <button onClick={onLike} style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "4px 10px", border: "1px solid #eee", borderRadius: 20, background: liked ? "#ffe6e6" : "#fff", color: liked ? "#d14" : "#d14", cursor: "pointer", animation: popBatchId === bid ? "heartPop 300ms ease" : undefined }} aria-label="点赞">
@@ -369,7 +372,7 @@ export default function FinalPredictSummaryPage() {
                     return (
                       <div key={`f-${it.slot}`}>
                         <Tooltip title={<PlayerTooltip student={it.student || null} playerId={it.playerId} />} color="#fff" styles={{ container: { border: "2px solid #000000", minWidth: 400 } }}>
-                          <div style={{ border: "1px solid #ddd", borderRadius: 8, padding: 10, background: it.isSub ? "#fff7e6" : undefined, position: "relative" }}>
+                          <div style={{ border: it.isCorrect ? "2px solid #52c41a" : "1px solid #ddd", borderRadius: 8, padding: 10, background: it.isCorrect ? "#f6ffed" : (it.isSub ? "#fff7e6" : undefined), position: "relative" }}>
                             {it.isSub ? (<div style={{ position: "absolute", top: 6, right: 6, background: "#fa541c", color: "#fff", borderRadius: 6, fontSize: 12, lineHeight: 1, padding: "2px 6px" }}>更换</div>) : null}
                             <div style={{ fontSize: 16, fontWeight: 800 }}>{it.slot}区</div>
 
@@ -389,7 +392,7 @@ export default function FinalPredictSummaryPage() {
                   {group.items.slice(5, 10).map((it: any) => {
                     const s = it.student || {}
                     return (
-                      <div key={`r-${it.slot}`} style={{ border: "1px solid #ddd", borderRadius: 8, padding: 10, background: it.isSub ? "#fff7e6" : undefined, position: "relative" }}>
+                      <div key={`r-${it.slot}`} style={{ border: it.isCorrect ? "2px solid #52c41a" : "1px solid #ddd", borderRadius: 8, padding: 10, background: it.isCorrect ? "#f6ffed" : (it.isSub ? "#fff7e6" : undefined), position: "relative" }}>
                         {it.isSub ? (<div style={{ position: "absolute", top: 6, right: 6, background: "#fa541c", color: "#fff", borderRadius: 6, fontSize: 12, lineHeight: 1, padding: "2px 6px" }}>更换</div>) : null}
                         <div style={{ fontSize: 16, fontWeight: 800 }}>{it.slot}区</div>
                         <Tooltip title={<PlayerTooltip student={it.student || null} playerId={it.playerId} />} color="#fff" styles={{ container: { border: "2px solid #000000", minWidth: 400 } }}>

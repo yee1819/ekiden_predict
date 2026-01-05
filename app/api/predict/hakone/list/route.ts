@@ -9,6 +9,8 @@ export async function GET(req: Request) {
     const schoolName = searchParams.get("schoolName") || undefined
     if (!Number.isFinite(ekidenThId)) return NextResponse.json({ error: "missing ekidenThId" }, { status: 400 })
 
+    const cutoffDate = new Date("2025-12-29T06:30:00Z")
+
     let team: any | null = null
     if (schoolId) {
       team = await prisma.ekiden_no_team.findFirst({ where: { Ekiden_thId: ekidenThId, schoolId } })
@@ -30,10 +32,20 @@ export async function GET(req: Request) {
       baseIntervals.forEach(b => intervalNamesMap.set(b.id, b.name))
     }
 
-    const predicts = await prisma.ekiden_Team_Predict.findMany({ where: { Ekiden_no_teamId: team.id, Ekiden_thId: ekidenThId }, orderBy: [{ batchId: "desc" }, { createdAt: "desc" }, { Ekiden_th_intervalId: "asc" }] })
+    const predicts = await prisma.ekiden_Team_Predict.findMany({ where: { Ekiden_no_teamId: team.id, Ekiden_thId: ekidenThId, createdAt: { lte: cutoffDate } }, orderBy: [{ batchId: "desc" }, { createdAt: "desc" }, { Ekiden_th_intervalId: "asc" }] })
     const students = await prisma.student.findMany({ where: { id: { in: predicts.map(p => p.studentId!).filter(Boolean) as number[] } } })
     const stuMap = new Map<number, any>()
     students.forEach(s => stuMap.set(s.id, s))
+
+    const actualItems = await prisma.student_ekiden_item.findMany({
+      where: { Ekiden_thId: ekidenThId },
+      select: { Ekiden_no_teamId: true, Ekiden_th_intervalId: true, studentId: true }
+    })
+    const actualMap = new Map<number, Map<number, number>>()
+    for (const item of actualItems) {
+      if (!actualMap.has(item.Ekiden_no_teamId)) actualMap.set(item.Ekiden_no_teamId, new Map())
+      actualMap.get(item.Ekiden_no_teamId)!.set(item.Ekiden_th_intervalId, item.studentId)
+    }
 
     const groupsMap = new Map<string, any[]>()
     for (const p of predicts) {
@@ -47,15 +59,19 @@ export async function GET(req: Request) {
     const groups = Array.from(groupsMap.entries()).map(([key, arr]) => {
       const byInterval = new Map<number, typeof arr[number]>()
       arr.forEach(x => byInterval.set(x.Ekiden_th_intervalId, x))
+      const actualForTeam = actualMap.get(team.id)
       const items = thIntervals.map((thInt, idx) => {
         const p = byInterval.get(thInt.id)
         const stu = p?.studentId ? stuMap.get(p.studentId) : undefined
+        const actualStudentId = actualForTeam?.get(thInt.id)
+        const isCorrect = !!(actualStudentId && p?.studentId && actualStudentId === p.studentId)
         return {
           slot: idx + 1,
           intervalName: intervalNamesMap.get(thInt.ekiden_intervalId) || `${idx + 1}区`,
           predictSec: typeof p?.predict_score_sec === "number" ? p!.predict_score_sec : null,
           playerId: p?.studentId ?? null,
           playerName: stu?.name ?? null,
+          isCorrect,
           student: stu ? {
             name: stu.name,
             score5000m: stu.score_5000m ?? null,
@@ -68,7 +84,7 @@ export async function GET(req: Request) {
       })
       const forward = items.slice(0, 5)
       const returnR = items.slice(5, 10)
-      const createdAt = arr.map(x => x.updatedAt || x.createdAt).filter(Boolean).sort((a, b) => (a as any) - (b as any)).pop() || null
+      const createdAt = arr.map(x => x.createdAt).filter(Boolean).sort((a, b) => (a as any) - (b as any)).pop() || null
       const meta = {
         name: arr.find(x => x.userName)?.userName || "—",
         createdAt,
@@ -76,6 +92,7 @@ export async function GET(req: Request) {
         forwardTotal: sum(forward),
         returnTotal: sum(returnR),
         total: sum(items),
+        correctCount: items.filter(x => x.isCorrect).length,
         batchId: arr.find(x => x.batchId)?.batchId || null,
         groupKey: key,
       }

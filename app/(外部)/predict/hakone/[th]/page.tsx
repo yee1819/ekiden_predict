@@ -1,13 +1,13 @@
 "use client"
 import React, { useEffect, useMemo, useState } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
-import { Tooltip, Select, Segmented, TimePicker } from "antd"
+import { Tooltip, Select, Segmented, TimePicker, message, Modal } from "antd"
 import dayjs from "dayjs"
 import { fetchPublicOrApi } from "@/app/lib/public-cache"
 
 type EkidenType = "出雲" | "全日本" | "箱根"
 type Grade = 1 | 2 | 3 | 4
-type EntryRecord = { ekiden: EkidenType; grade: Grade; intervalName?: string; rank?: number; symbol?: "○" | "△" | "—"; dnf?: boolean; time?: string; year?: number; runner?: string; runnerGrade?: number }
+type EntryRecord = { ekiden: EkidenType; grade: Grade; intervalName?: string; rank?: number; symbol?: "○" | "△" | "—"; dnf?: boolean; time?: string; year?: number; runner?: string; runnerGrade?: number; isNewRecord?: boolean }
 type Player = {
     id: number
     name: string
@@ -52,6 +52,7 @@ export default function Page() {
     const [selectedPlayerId, setSelectedPlayerId] = useState<number | null>(null)
     const [selectedSlot, setSelectedSlot] = useState<number | null>(null)
     const [detailPlayer, setDetailPlayer] = useState<Player | null>(null)
+    const [detailModalOpen, setDetailModalOpen] = useState<boolean>(false)
     const [assignments, setAssignments] = useState<Record<number, Player | null>>(
         () => Object.fromEntries(Array.from({ length: 10 }, (_, i) => [i + 1, null]))
     )
@@ -238,9 +239,9 @@ export default function Page() {
                                             borderLeft: "1px solid #eee",
                                         }}
                                     >
-                                        <div style={{ whiteSpace: "nowrap" }}>{text}</div>
+                                        <div style={{ whiteSpace: "nowrap", color: rec?.isNewRecord ? "red" : undefined }}>{text}</div>
                                         {rec?.time && (
-                                            <div style={{ fontSize: 12, color: "#555", marginTop: 2, whiteSpace: "nowrap" }}>{rec.time}</div>
+                                            <div style={{ fontSize: 12, color: rec?.isNewRecord ? "red" : "#555", marginTop: 2, whiteSpace: "nowrap" }}>{rec.time}{rec?.isNewRecord ? <span style={{ color: "red", marginRight: 2 }}>『新』</span> : null}</div>
                                         )}
                                     </div>
                                 )
@@ -384,7 +385,7 @@ export default function Page() {
             items.forEach((it: any) => {
                 const sid = it.studentId
                 const list = entriesById.get(sid) || []
-                const rec: EntryRecord = { ekiden: "箱根", grade: gradeMap[it.grade as string] as Grade, intervalName: it.intervalName as string | undefined, rank: typeof it.rank === "number" ? it.rank : undefined, time: typeof it.score === "number" ? formatSeconds(it.score) : undefined, year: undefined, runner: undefined, runnerGrade: undefined }
+                const rec: EntryRecord = { ekiden: "箱根", grade: gradeMap[it.grade as string] as Grade, intervalName: it.intervalName as string | undefined, rank: typeof it.rank === "number" ? it.rank : undefined, time: typeof it.score === "number" ? formatSeconds(it.score) : undefined, year: undefined, runner: undefined, runnerGrade: undefined, isNewRecord: it?.isNewRecord === true }
                 list.push(rec)
                 entriesById.set(sid, list)
             })
@@ -407,7 +408,7 @@ export default function Page() {
                 if (!ek) return
                 const g = gradeMap[it.grade as string] as Grade
                 const nameFromMap = intervalMaps[it.ekidenId]?.[it.intervalId]
-                const rec: EntryRecord = { ekiden: ek, grade: g, intervalName: (typeof it.intervalName === "string" ? it.intervalName : nameFromMap), rank: typeof it.rank === "number" ? it.rank : undefined, time: typeof it.score === "number" ? formatSeconds(it.score) : undefined, year: undefined, runner: undefined, runnerGrade: undefined }
+                const rec: EntryRecord = { ekiden: ek, grade: g, intervalName: (typeof it.intervalName === "string" ? it.intervalName : nameFromMap), rank: typeof it.rank === "number" ? it.rank : undefined, time: typeof it.score === "number" ? formatSeconds(it.score) : undefined, year: undefined, runner: undefined, runnerGrade: undefined, isNewRecord: it?.isNewRecord === true }
                 list.push(rec)
                 entriesById.set(sid, list)
             })
@@ -431,295 +432,335 @@ export default function Page() {
         })()
     }, [selectedTeamId, teams, hakoneThId])
 
-    return (
-        <div style={{ background: '/public/2024top.jpg', padding: 16, overflowX: "auto", maxWidth: 1200, margin: "0 auto" }} >
-            <div className="pageHead" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, gap: 12 }}>
-                <h1 style={{ fontSize: 20 }}>{`第${yearLabel}回箱根驿传 十六选十分配`}</h1>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <Select
-                        style={{ minWidth: 200 }}
-                        value={selectedSchool?.id}
-                        options={schoolOptions.map(s => ({ value: s.id, label: s.name }))}
-                        onChange={handleSchoolChange}
-                        placeholder="选择学校"
-                    />
-                    <button onClick={() => router.push(`/predict/hakone/${yearLabel}/pb/student`)} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6 }}>选手PB榜</button>
-                    <button onClick={() => router.push(`/predict/hakone/${yearLabel}/pb/school`)} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6 }}>学校PB榜</button>
-                    <button onClick={() => router.push(`/predict/hakone/${yearLabel}/finalPredict` + (selectedSchool ? `?schoolId=${selectedSchool.id}` : ""))} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6 }}>最终首发替换</button>
-                    <button onClick={togglePredictMode} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6 }}>{predictMode ? "关闭时间" : "预测时间"}</button>
-                    <button onClick={resetAll} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6 }}>清空分配</button>
-                    <button onClick={onExport} disabled={assignedIds.size !== 10} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6, opacity: assignedIds.size === 10 ? 1 : 0.5 }}>完成分配</button>
-                </div>
-            </div>
-            {predictMode && totalPrediction.count === 10 && (
-                <div style={{ marginBottom: 8, fontSize: 14, color: "#080808" }}>总预测：{formatSeconds(totalPrediction.sum)}</div>
-            )}
 
-            <div className="layout" style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
-                <div style={{ flex: 1 }}>
-                    <div>
-                        <h2 style={{ fontSize: 14, marginBottom: 6 }}>10区分配</h2>
-                        <div className="slotGrid" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
-                            {Array.from({ length: 10 }, (_, i) => i + 1).map(slot => {
-                                const assigned = assignments[slot]
-                                const canAssign = selectedPlayerId !== null && !assignedIds.has(selectedPlayerId)
-                                const isSelectedSlot = selectedSlot === slot
-                                return (
-                                    <Tooltip
-                                        key={slot}
-                                        title={
-                                            <div style={{ maxWidth: 900 }}>
-                                                <div style={{ marginBottom: 6, fontWeight: 600 }}>{intervalMeta[slot]?.name}</div>
-                                                <div>地形：{intervalMeta[slot]?.elevation ?? "--"}</div>
-                                                {/* <div>说明：{intervalMeta[slot]?.desc ?? "--"}</div> */}
-                                                <img src={`/hakone/${slot}.png`} style={{
-                                                    width: "100%",
-                                                    marginTop: 8
-                                                }} />
-                                                {/* {intervalMeta[slot]?.map ? (
+    const [messageApi, contextHolder] = message.useMessage();
+    const info = () => {
+        messageApi.open({
+            type: 'info',
+            content: '今年箱根已结束',
+            duration: 10,
+        });
+    };
+
+
+
+    return (
+        <>
+            {contextHolder}
+            <Modal
+                open={detailModalOpen}
+                onCancel={() => { setDetailModalOpen(false); setDetailPlayer(null) }}
+                footer={null}
+                width={640}
+            >
+                {detailPlayer ? (
+                    <div style={{ borderRadius: 10, background: "#fff" }}>
+                        <div style={{ marginBottom: 6, fontWeight: 600, fontSize: 13 }}>队员详情</div>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 6, marginBottom: 8, fontSize: 12 }}>
+                            <div>姓名：{detailPlayer.name}</div>
+                            <div>年级：{gradeText(calcGrade(detailPlayer.entryYear))}</div>
+                            <div>5000m：{detailPlayer.score5000m ?? "--"}</div>
+                            <div>10000m：{detailPlayer.score10000m ?? "--"}</div>
+                            <div>半程：{detailPlayer.scoreHalf ?? "--"}</div>
+                            <div>高校PB：{detailPlayer.collegePB ?? "--"}</div>
+                        </div>
+                        {renderEntriesGrid(detailPlayer)}
+                    </div>
+                ) : null}
+            </Modal>
+            <div style={{ background: '/public/2024top.jpg', padding: 16, overflowX: "auto", maxWidth: 1200, margin: "0 auto" }} >
+                <div className="pageHead" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, gap: 12 }}>
+                    <h1 style={{ fontSize: 20 }}>{`第${yearLabel}回箱根驿传 十六选十分配`}</h1>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                        <Select
+                            style={{ minWidth: 200 }}
+                            value={selectedSchool?.id}
+                            options={schoolOptions.map(s => ({ value: s.id, label: s.name }))}
+                            onChange={handleSchoolChange}
+                            placeholder="选择学校"
+                        />
+                        <button onClick={() => router.push(`/predict/hakone/${yearLabel}/pb/student`)} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6 }}>选手PB榜</button>
+                        <button onClick={() => router.push(`/predict/hakone/${yearLabel}/pb/school`)} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6 }}>学校PB榜</button>
+                        <button onClick={() => router.push(`/predict/hakone/${yearLabel}/finalPredict` + (selectedSchool ? `?schoolId=${selectedSchool.id}` : ""))} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6 }}>最终首发替换</button>
+                        <button onClick={togglePredictMode} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6 }}>{predictMode ? "关闭时间" : "预测时间"}</button>
+                        <button onClick={resetAll} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6 }}>清空分配</button>
+                        <button
+                            // onClick={onExport}
+                            onClick={info}
+
+                            disabled={assignedIds.size !== 10} style={{ padding: "6px 12px", border: "1px solid #ccc", borderRadius: 6, opacity: assignedIds.size === 10 ? 1 : 0.5 }}>完成分配</button>
+                    </div>
+                </div>
+                {predictMode && totalPrediction.count === 10 && (
+                    <div style={{ marginBottom: 8, fontSize: 14, color: "#080808" }}>总预测：{formatSeconds(totalPrediction.sum)}</div>
+                )}
+
+                <div className="layout" style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+                    <div style={{ flex: 1 }}>
+                        <div>
+                            <h2 style={{ fontSize: 14, marginBottom: 6 }}>10区分配</h2>
+                            <div className="slotGrid" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
+                                {Array.from({ length: 10 }, (_, i) => i + 1).map(slot => {
+                                    const assigned = assignments[slot]
+                                    const canAssign = selectedPlayerId !== null && !assignedIds.has(selectedPlayerId)
+                                    const isSelectedSlot = selectedSlot === slot
+                                    return (
+                                        <Tooltip
+                                            key={slot}
+                                            title={
+                                                <div style={{ maxWidth: 900 }}>
+                                                    <div style={{ marginBottom: 6, fontWeight: 600 }}>{intervalMeta[slot]?.name}</div>
+                                                    <div>地形：{intervalMeta[slot]?.elevation ?? "--"}</div>
+                                                    {/* <div>说明：{intervalMeta[slot]?.desc ?? "--"}</div> */}
+                                                    <img src={`/hakone/${slot}.png`} style={{
+                                                        width: "100%",
+                                                        marginTop: 8
+                                                    }} />
+                                                    {/* {intervalMeta[slot]?.map ? (
                                                     
                                                 ) : (
                                                     <div style={{ marginTop: 8, color: "#888" }}>暂无地形图</div>
                                                 )} */}
-                                            </div>
-                                        }
-                                        color="#fff"
-                                        styles={{ container: { border: "1px solid #000000" } }}
-                                    >
-                                        <div
-                                            onDrop={e => onDrop(e, slot)}
-                                            onDragOver={e => e.preventDefault()}
-                                            onClick={() => {
-                                                if (assigned) return
-                                                if (canAssign) {
-                                                    const p = players.find(x => x.id === selectedPlayerId)
-                                                    if (p) handleAssign(slot, p)
-                                                    return
-                                                }
-                                                setSelectedSlot(isSelectedSlot ? null : slot)
-                                            }}
-                                            style={{
-                                                border: isSelectedSlot && !assigned ? "3px solid #000000" : "2px dashed #ccc",
-                                                borderRadius: 10,
-                                                padding: 10,
-                                                minHeight: 56,
-                                                background: assigned
-                                                    ? "#a1d49b"
-                                                    : isSelectedSlot
-                                                        ? "#ffd700"
-                                                        : canAssign
-                                                            ? "#f0fbff"
-                                                            : "#fffdf2",
-                                            }}
+                                                </div>
+                                            }
+                                            color="#fff"
+                                            styles={{ container: { border: "1px solid #000000" } }}
                                         >
-                                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                                                <strong>{slot}区</strong>
-                                                {assigned && (
-                                                    <button
-                                                        onClick={() => handleUnassign(slot)}
-                                                        style={{ padding: "4px 8px", border: "1px solid #0d0d0d", borderRadius: 6 }}
-                                                    >移除</button>
-                                                )}
-                                            </div>
-                                            <div>
-                                                {assigned ? (
-                                                    <Tooltip
-                                                        title={
-                                                            <div style={{ maxWidth: 280 }}>
-                                                                <div style={{ marginBottom: 8, fontWeight: 600 }}>{assigned.name}</div>
-                                                                <div style={{ display: "grid", gridTemplateColumns: "repeat(1, 1fr)", gap: 8, marginBottom: 8 }}>
-                                                                    <div>5000m：{assigned.score5000m ?? "--"}</div>
-                                                                    <div>10000m：{assigned.score10000m ?? "--"}</div>
-                                                                    <div>半程：{assigned.scoreHalf ?? "--"}</div>
-                                                                    {/* <div>全程：{assigned.scoreFull ?? "--"}</div> */}
-                                                                    <div>年级：{gradeText(calcGrade(assigned.entryYear))}</div>
-                                                                    <div>高校pb：{assigned.collegePB ?? "--"}</div>
+                                            <div
+                                                onDrop={e => onDrop(e, slot)}
+                                                onDragOver={e => e.preventDefault()}
+                                                onClick={() => {
+                                                    if (assigned) return
+                                                    if (canAssign) {
+                                                        const p = players.find(x => x.id === selectedPlayerId)
+                                                        if (p) handleAssign(slot, p)
+                                                        return
+                                                    }
+                                                    setSelectedSlot(isSelectedSlot ? null : slot)
+                                                }}
+                                                style={{
+                                                    border: isSelectedSlot && !assigned ? "3px solid #000000" : "2px dashed #ccc",
+                                                    borderRadius: 10,
+                                                    padding: 10,
+                                                    minHeight: 56,
+                                                    background: assigned
+                                                        ? "#a1d49b"
+                                                        : isSelectedSlot
+                                                            ? "#ffd700"
+                                                            : canAssign
+                                                                ? "#f0fbff"
+                                                                : "#fffdf2",
+                                                }}
+                                            >
+                                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                                                    <strong>{slot}区</strong>
+                                                    {assigned && (
+                                                        <button
+                                                            onClick={() => handleUnassign(slot)}
+                                                            style={{ padding: "4px 8px", border: "1px solid #0d0d0d", borderRadius: 6 }}
+                                                        >移除</button>
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    {assigned ? (
+                                                        <Tooltip
+                                                            title={
+                                                                <div style={{ maxWidth: 280 }}>
+                                                                    <div style={{ marginBottom: 8, fontWeight: 600 }}>{assigned.name}</div>
+                                                                    <div style={{ display: "grid", gridTemplateColumns: "repeat(1, 1fr)", gap: 8, marginBottom: 8 }}>
+                                                                        <div>5000m：{assigned.score5000m ?? "--"}</div>
+                                                                        <div>10000m：{assigned.score10000m ?? "--"}</div>
+                                                                        <div>半程：{assigned.scoreHalf ?? "--"}</div>
+                                                                        {/* <div>全程：{assigned.scoreFull ?? "--"}</div> */}
+                                                                        <div>年级：{gradeText(calcGrade(assigned.entryYear))}</div>
+                                                                        <div>高校pb：{assigned.collegePB ?? "--"}</div>
+                                                                    </div>
+                                                                    {renderEntriesGrid(assigned)}
                                                                 </div>
-                                                                {renderEntriesGrid(assigned)}
-                                                            </div>
-                                                        }
-                                                        color="#fff"
-                                                        styles={{ container: { border: "2px solid #010101", minWidth: 320 } }}
-                                                        placement="bottomRight"
-                                                    >
-                                                        <div
-                                                            onClick={() => setDetailPlayer(assigned)}
-                                                            style={{ padding: 8, border: "1px solid #100f0f", borderRadius: 8 }}
+                                                            }
+                                                            color="#fff"
+                                                            styles={{ container: { border: "2px solid #010101", minWidth: 320 } }}
+                                                            placement="bottomRight"
                                                         >
-                                                            {assigned.name}
-                                                        </div>
-                                                    </Tooltip>
-                                                ) : (
-                                                    <div style={{ color: isSelectedSlot ? "#000000" : "#888" }}>{isSelectedSlot ? "选择一个队员分配到此" : "拖动或点击名单分配到此"}</div>
-                                                )}
-                                                {predictMode && assigned && (
-                                                    <div style={{ marginTop: 8 }}>
-                                                        {(() => {
-                                                            const sec = predictions[slot]
-                                                            const h = Math.floor(sec / 3600)
-                                                            const m = Math.floor((sec % 3600) / 60)
-                                                            const s = sec % 60
-                                                            const value = dayjs().hour(h).minute(m).second(s)
-                                                            const onChange = (val: any) => {
-                                                                if (!val) return
-                                                                let nh = val.hour()
-                                                                let nm = val.minute()
-                                                                let ns = val.second()
-                                                                const [minM, maxM] = slotMinuteRanges[slot] || [55, 80]
-                                                                // convert hh:mm to absolute minutes range
-                                                                const totalM = nh * 60 + nm
-                                                                const clampedM = Math.min(Math.max(totalM, minM), maxM)
-                                                                nh = Math.floor(clampedM / 60)
-                                                                nm = clampedM % 60
-                                                                const clamped = nh * 3600 + nm * 60 + ns
-                                                                setPredictions(prev => ({ ...prev, [slot]: clamped }))
-                                                            }
-                                                            const disabledTime = (_date: any) => {
-                                                                const [minM, maxM] = slotMinuteRanges[slot] || [55, 80]
-                                                                const allowedHours: number[] = []
-                                                                if (minM <= 59) allowedHours.push(0)
-                                                                if (maxM >= 60) allowedHours.push(1)
-                                                                const disabledHours = () => Array.from({ length: 24 }, (_, i) => i).filter(i => !allowedHours.includes(i))
-                                                                const disabledMinutes = (selectedHour?: number) => {
-                                                                    const allowed: number[] = []
-                                                                    if (selectedHour === 0 && minM <= 59) {
-                                                                        const start = Math.max(0, minM)
-                                                                        const end = Math.min(59, maxM)
-                                                                        for (let i = start; i <= end; i++) allowed.push(i)
-                                                                    } else if (selectedHour === 1 && maxM >= 60) {
-                                                                        const start = Math.max(0, minM - 60)
-                                                                        const end = Math.min(59, maxM - 60)
-                                                                        for (let i = start; i <= end; i++) allowed.push(i)
-                                                                    }
-                                                                    return Array.from({ length: 60 }, (_, i) => i).filter(i => !allowed.includes(i))
+                                                            <div
+                                                                onClick={() => { setDetailPlayer(assigned); setDetailModalOpen(true) }}
+                                                                style={{ padding: 8, border: "1px solid #100f0f", borderRadius: 8 }}
+                                                            >
+                                                                {assigned.name}
+                                                            </div>
+                                                        </Tooltip>
+                                                    ) : (
+                                                        <div style={{ color: isSelectedSlot ? "#000000" : "#888" }}>{isSelectedSlot ? "选择一个队员分配到此" : "拖动或点击名单分配到此"}</div>
+                                                    )}
+                                                    {predictMode && assigned && (
+                                                        <div style={{ marginTop: 8 }}>
+                                                            {(() => {
+                                                                const sec = predictions[slot]
+                                                                const h = Math.floor(sec / 3600)
+                                                                const m = Math.floor((sec % 3600) / 60)
+                                                                const s = sec % 60
+                                                                const value = dayjs().hour(h).minute(m).second(s)
+                                                                const onChange = (val: any) => {
+                                                                    if (!val) return
+                                                                    let nh = val.hour()
+                                                                    let nm = val.minute()
+                                                                    let ns = val.second()
+                                                                    const [minM, maxM] = slotMinuteRanges[slot] || [55, 80]
+                                                                    // convert hh:mm to absolute minutes range
+                                                                    const totalM = nh * 60 + nm
+                                                                    const clampedM = Math.min(Math.max(totalM, minM), maxM)
+                                                                    nh = Math.floor(clampedM / 60)
+                                                                    nm = clampedM % 60
+                                                                    const clamped = nh * 3600 + nm * 60 + ns
+                                                                    setPredictions(prev => ({ ...prev, [slot]: clamped }))
                                                                 }
-                                                                const disabledSeconds = () => []
-                                                                return { disabledHours, disabledMinutes, disabledSeconds }
-                                                            }
-                                                            return (
-                                                                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                                                    <span style={{ fontSize: 12, color: "#555" }}>预测</span>
-                                                                    <span style={{ fontSize: 12 }}>{formatSeconds(sec)}</span>
-                                                                    <TimePicker
-                                                                        value={value}
-                                                                        format="HH:mm:ss"
-                                                                        showNow={false}
-                                                                        onChange={onChange}
-                                                                        disabledTime={disabledTime}
-                                                                    />
-                                                                </div>
-                                                            )
-                                                        })()}
-                                                    </div>
-                                                )}
+                                                                const disabledTime = (_date: any) => {
+                                                                    const [minM, maxM] = slotMinuteRanges[slot] || [55, 80]
+                                                                    const allowedHours: number[] = []
+                                                                    if (minM <= 59) allowedHours.push(0)
+                                                                    if (maxM >= 60) allowedHours.push(1)
+                                                                    const disabledHours = () => Array.from({ length: 24 }, (_, i) => i).filter(i => !allowedHours.includes(i))
+                                                                    const disabledMinutes = (selectedHour?: number) => {
+                                                                        const allowed: number[] = []
+                                                                        if (selectedHour === 0 && minM <= 59) {
+                                                                            const start = Math.max(0, minM)
+                                                                            const end = Math.min(59, maxM)
+                                                                            for (let i = start; i <= end; i++) allowed.push(i)
+                                                                        } else if (selectedHour === 1 && maxM >= 60) {
+                                                                            const start = Math.max(0, minM - 60)
+                                                                            const end = Math.min(59, maxM - 60)
+                                                                            for (let i = start; i <= end; i++) allowed.push(i)
+                                                                        }
+                                                                        return Array.from({ length: 60 }, (_, i) => i).filter(i => !allowed.includes(i))
+                                                                    }
+                                                                    const disabledSeconds = () => []
+                                                                    return { disabledHours, disabledMinutes, disabledSeconds }
+                                                                }
+                                                                return (
+                                                                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                                        <span style={{ fontSize: 12, color: "#555" }}>预测</span>
+                                                                        <span style={{ fontSize: 12 }}>{formatSeconds(sec)}</span>
+                                                                        <TimePicker
+                                                                            value={value}
+                                                                            format="HH:mm:ss"
+                                                                            showNow={false}
+                                                                            onChange={onChange}
+                                                                            disabledTime={disabledTime}
+                                                                        />
+                                                                    </div>
+                                                                )
+                                                            })()}
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
-                                        </div>
-                                    </Tooltip>
-                                )
-                            })}
+                                        </Tooltip>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                        <div style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "flex-start" }}>
+                            <div style={{ flex: "0 0 540px" }}>
+                                <h2 style={{ fontSize: 14, marginBottom: 6 }}>16人名单（未分配：{unassigned.length}）</h2>
+                                <div className="playerGrid" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 6 }}>
+                                    {players.map(p => {
+                                        const assigned = assignedIds.has(p.id)
+                                        const selected = selectedPlayerId === p.id
+                                        const hasEntry = (p.entries && p.entries.length > 0)
+                                        const hasHakone = (p.entries || []).some(e => e.ekiden === "箱根")
+                                        return (
+                                            <div
+                                                key={p.id}
+                                                draggable={!assigned}
+                                                onDragStart={e => onDragStart(e, p.id)}
+                                                onClick={() => {
+                                                    if (assigned) return
+                                                    if (selectedSlot) {
+                                                        handleAssign(selectedSlot, p)
+                                                        setDetailPlayer(p)
+                                                        return
+                                                    }
+                                                    setSelectedPlayerId(selected ? null : p.id)
+                                                    setDetailPlayer(p)
+                                                }}
+                                                style={{
+                                                    padding: 8,
+                                                    border: "1px solid #ccc",
+                                                    borderRadius: 8,
+                                                    background: assigned
+                                                        ? "#828282"
+                                                        : selected
+                                                            ? "#7cbdf6"
+                                                            : hasHakone
+                                                                ? "#b7eb8f"
+                                                                : hasEntry
+                                                                    ? "#d8e370"
+                                                                    : "#fffdf2",
+                                                    opacity: assigned ? 0.6 : 1,
+                                                    cursor: assigned ? "not-allowed" : "grab",
+                                                }}
+                                            >
+                                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                                    <span>{p.name} <span style={{ fontSize: 12, color: "#666", marginLeft: 6 }}>{gradeText(calcGrade(p.entryYear))}</span></span>
+                                                    {assigned && <span style={{ fontSize: 12, color: "#888" }}>已分配</span>}
+                                                </div>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                                <div style={{ marginTop: 6, fontSize: 12, border: "1px solid #ddd", borderRadius: 8, padding: 8, background: "rgba(var(--panel-bg-rgb), var(--panel-opacity))" }}>
+                                    <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+                                        <div>队伍：{selectedSchool?.name ?? "—"}</div>
+                                        <div>名单：{players.length}人</div>
+                                        <div>已分配：{assignedIds.size}人</div>
+                                        <div>未分配：{unassigned.length}人</div>
+                                    </div>
+                                </div>
+                            </div>
+                            {detailPlayer && (
+                                <div style={{ flex: "0 0 280px", border: "1px solid #8b8b8b", borderRadius: 10, background: "#fff", padding: 10 }}>
+                                    <div style={{ marginBottom: 6, fontWeight: 600, fontSize: 13 }}>队员详情</div>
+                                    <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 6, marginBottom: 8, fontSize: 12 }}>
+                                        <div>姓名：{detailPlayer.name}</div>
+                                        <div>年级：{gradeText(calcGrade(detailPlayer.entryYear))}</div>
+                                        <div>5000m：{detailPlayer.score5000m ?? "--"}</div>
+                                        <div>10000m：{detailPlayer.score10000m ?? "--"}</div>
+                                        <div>半程：{detailPlayer.scoreHalf ?? "--"}</div>
+                                        <div>高校PB：{detailPlayer.collegePB ?? "--"}</div>
+                                        {/* <div>全程：{detailPlayer.scoreFull ?? "--"}</div> */}
+                                    </div>
+                                    {renderEntriesGrid(detailPlayer)}
+                                </div>
+                            )}
                         </div>
                     </div>
-                    <div style={{ marginTop: 12, display: "flex", gap: 10, alignItems: "flex-start" }}>
-                        <div style={{ flex: "0 0 540px" }}>
-                            <h2 style={{ fontSize: 14, marginBottom: 6 }}>16人名单（未分配：{unassigned.length}）</h2>
-                            <div className="playerGrid" style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 6 }}>
-                                {players.map(p => {
-                                    const assigned = assignedIds.has(p.id)
-                                    const selected = selectedPlayerId === p.id
+                    <div className="rightCol" style={{ width: 280 }}>
+                        <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 10, background: "#fff" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                                {/* <div style={{ fontWeight: 600, fontSize: 14 }}>参赛队员排行榜</div> */}
+                                <Segmented
+                                    options={[
+                                        // "1500m", 
+                                        "5000m", "10000m", "半马"]}
+                                    value={metric}
+                                    onChange={(val) => setMetric(val as any)}
+                                />
+                                <div style={{ fontSize: 12, color: "#555" }}>{top10AvgSec != null ? `前十平均：${formatSeconds(top10AvgSec)}` : "前十平均：—"}</div>
+                            </div>
+                            <div style={{ display: "grid", gap: 6 }}>
+                                {leaderboard.map((p, idx) => {
+                                    const time = metric === "1500m" ? p.score1500m : metric === "5000m" ? p.score5000m : metric === "10000m" ? p.score10000m : metric === "半马" ? p.scoreHalf : p.scoreFull
                                     const hasEntry = (p.entries && p.entries.length > 0)
                                     const hasHakone = (p.entries || []).some(e => e.ekiden === "箱根")
                                     return (
-                                        <div
-                                            key={p.id}
-                                            draggable={!assigned}
-                                            onDragStart={e => onDragStart(e, p.id)}
-                                            onClick={() => {
-                                                if (assigned) return
-                                                if (selectedSlot) {
-                                                    handleAssign(selectedSlot, p)
-                                                    setDetailPlayer(p)
-                                                    return
-                                                }
-                                                setSelectedPlayerId(selected ? null : p.id)
-                                                setDetailPlayer(p)
-                                            }}
-                                            style={{
-                                                padding: 8,
-                                                border: "1px solid #ccc",
-                                                borderRadius: 8,
-                                                background: assigned
-                                                    ? "#828282"
-                                                    : selected
-                                                        ? "#7cbdf6"
-                                                        : hasHakone
-                                                            ? "#b7eb8f"
-                                                            : hasEntry
-                                                                ? "#d8e370"
-                                                                : "#fffdf2",
-                                                opacity: assigned ? 0.6 : 1,
-                                                cursor: assigned ? "not-allowed" : "grab",
-                                            }}
-                                        >
-                                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                                <span>{p.name} <span style={{ fontSize: 12, color: "#666", marginLeft: 6 }}>{gradeText(calcGrade(p.entryYear))}</span></span>
-                                                {assigned && <span style={{ fontSize: 12, color: "#888" }}>已分配</span>}
-                                            </div>
+                                        <div key={p.id} onClick={() => { setDetailPlayer(p); setDetailModalOpen(true) }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 6, border: "1px solid #eee", borderRadius: 8, background: hasHakone ? "#b7eb8f" : hasEntry ? "#dbeb8a" : "#fffdf2", fontSize: 13 }}>
+                                            <span style={{ width: 24, textAlign: "center" }}>{idx + 1}</span>
+                                            <span style={{ flex: 1 }}>{p.name} <span style={{ fontSize: 12, color: "#666", marginLeft: 6 }}>{gradeText(calcGrade(p.entryYear))}</span></span>
+                                            <span style={{ color: "#555" }}>{time ?? "--"}</span>
                                         </div>
                                     )
                                 })}
                             </div>
-                            <div style={{ marginTop: 6, fontSize: 12, border: "1px solid #ddd", borderRadius: 8, padding: 8, background: "rgba(var(--panel-bg-rgb), var(--panel-opacity))" }}>
-                                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
-                                    <div>队伍：{selectedSchool?.name ?? "—"}</div>
-                                    <div>名单：{players.length}人</div>
-                                    <div>已分配：{assignedIds.size}人</div>
-                                    <div>未分配：{unassigned.length}人</div>
-                                </div>
-                            </div>
-                        </div>
-                        {detailPlayer && (
-                            <div style={{ flex: "0 0 280px", border: "1px solid #8b8b8b", borderRadius: 10, background: "#fff", padding: 10 }}>
-                                <div style={{ marginBottom: 6, fontWeight: 600, fontSize: 13 }}>队员详情</div>
-                                <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 6, marginBottom: 8, fontSize: 12 }}>
-                                    <div>姓名：{detailPlayer.name}</div>
-                                    <div>年级：{gradeText(calcGrade(detailPlayer.entryYear))}</div>
-                                    <div>5000m：{detailPlayer.score5000m ?? "--"}</div>
-                                    <div>10000m：{detailPlayer.score10000m ?? "--"}</div>
-                                    <div>半程：{detailPlayer.scoreHalf ?? "--"}</div>
-                                    <div>高校PB：{detailPlayer.collegePB ?? "--"}</div>
-                                    {/* <div>全程：{detailPlayer.scoreFull ?? "--"}</div> */}
-                                </div>
-                                {renderEntriesGrid(detailPlayer)}
-                            </div>
-                        )}
-                    </div>
-                </div>
-                <div className="rightCol" style={{ width: 280 }}>
-                    <div style={{ padding: 12, border: "1px solid #ddd", borderRadius: 10, background: "#fff" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                            {/* <div style={{ fontWeight: 600, fontSize: 14 }}>参赛队员排行榜</div> */}
-                            <Segmented
-                                options={[
-                                    // "1500m", 
-                                    "5000m", "10000m", "半马"]}
-                                value={metric}
-                                onChange={(val) => setMetric(val as any)}
-                            />
-                            <div style={{ fontSize: 12, color: "#555" }}>{top10AvgSec != null ? `前十平均：${formatSeconds(top10AvgSec)}` : "前十平均：—"}</div>
-                        </div>
-                        <div style={{ display: "grid", gap: 6 }}>
-                            {leaderboard.map((p, idx) => {
-                                const time = metric === "1500m" ? p.score1500m : metric === "5000m" ? p.score5000m : metric === "10000m" ? p.score10000m : metric === "半马" ? p.scoreHalf : p.scoreFull
-                                const hasEntry = (p.entries && p.entries.length > 0)
-                                const hasHakone = (p.entries || []).some(e => e.ekiden === "箱根")
-                                return (
-                                    <div key={p.id} onClick={() => setDetailPlayer(p)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: 6, border: "1px solid #eee", borderRadius: 8, background: hasHakone ? "#b7eb8f" : hasEntry ? "#dbeb8a" : "#fffdf2", fontSize: 13 }}>
-                                        <span style={{ width: 24, textAlign: "center" }}>{idx + 1}</span>
-                                        <span style={{ flex: 1 }}>{p.name} <span style={{ fontSize: 12, color: "#666", marginLeft: 6 }}>{gradeText(calcGrade(p.entryYear))}</span></span>
-                                        <span style={{ color: "#555" }}>{time ?? "--"}</span>
-                                    </div>
-                                )
-                            })}
                         </div>
                     </div>
 
@@ -753,13 +794,9 @@ export default function Page() {
                 <button onClick={() => router.push(`/predict/hakone/${yearLabel}/result/rank`)} style={{ padding: "8px 12px", border: "1px solid #ccc", borderRadius: 20, background: "#fff" }}>查看排名</button>
             </div>
 
-            <style jsx>{`
-              @media (max-width: 768px) {
-                .pageHead { flex-wrap: wrap; }
-                .pageHead h1 { width: 100%; }
-              }
-            `}</style>
-        </div>
+            {/* 移除styled-jsx以规避解析错误 */}
+
+        </>
     )
 }
 

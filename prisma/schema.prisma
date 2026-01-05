@@ -171,6 +171,11 @@ model student_ekiden_item {
   rank                 Int
   ///年级
   grade                grade
+
+
+  /// 是否新记录
+  isNewRecord Boolean @default(false)
+
   Ekiden_th_intervalId Int
   Ekiden_th_interval   Ekiden_th_interval @relation(fields: [Ekiden_th_intervalId], references: [id])
 

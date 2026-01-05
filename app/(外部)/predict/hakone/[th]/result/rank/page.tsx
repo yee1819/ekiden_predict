@@ -168,7 +168,7 @@ export default function RankPage() {
         return g === 1 ? "一年" : g === 2 ? "二年" : g === 3 ? "三年" : "四年"
     }
     type EkidenType = "出雲" | "全日本" | "箱根"
-    type EntryRecord = { ekiden: EkidenType; grade: Grade; intervalName?: string; rank?: number; time?: string }
+    type EntryRecord = { ekiden: EkidenType; grade: Grade; intervalName?: string; rank?: number; time?: string; isNewRecord?: boolean }
     function renderEntriesGridByPlayer(playerId?: number | null) {
         const raw = (playerId && entriesById[playerId]) ? entriesById[playerId] : []
         const grades: Grade[] = [1, 2, 3, 4]
@@ -179,7 +179,7 @@ export default function RankPage() {
             const g = gradeMap[String(it.grade)] as Grade
             const name = ekidenIdToName[it.ekidenId]
             if (!name) return
-            const rec: EntryRecord = { ekiden: name, grade: g, intervalName: it.intervalName, rank: typeof it.rank === "number" ? it.rank : undefined, time: typeof it.score === "number" ? formatSeconds(it.score) : undefined }
+            const rec: EntryRecord = { ekiden: name, grade: g, intervalName: it.intervalName, rank: typeof it.rank === "number" ? it.rank : undefined, time: typeof it.score === "number" ? formatSeconds(it.score) : undefined, isNewRecord: it?.isNewRecord === true }
             lookup.set(`${g}-${name}`, rec)
         })
         function cellBg(rec?: EntryRecord) {
@@ -205,7 +205,7 @@ export default function RankPage() {
                                 const text = rec?.intervalName ? `${rec.intervalName}${rec?.rank ? `${rec.rank}位` : ""}` : ""
                                 return (
                                     <div key={`${g}-${c}`} style={{ padding: 6, textAlign: "center", borderTop: "1px solid #eee", borderRight: "1px solid #eee", background: cellBg(rec), whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                        <div style={{ whiteSpace: "nowrap" }}><strong>{text}</strong></div>
+                                        <div style={{ whiteSpace: "nowrap" }}><strong>{rec?.isNewRecord ? <span style={{ color: "red", marginRight: 2 }}>新</span> : null}{text}</strong></div>
                                         {rec?.time && (<div style={{ fontSize: 12, color: "#555", marginTop: 2, whiteSpace: "nowrap" }}><strong>{rec.time}</strong></div>)}
                                     </div>
                                 )

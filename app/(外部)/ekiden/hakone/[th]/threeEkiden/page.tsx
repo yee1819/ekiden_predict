@@ -300,9 +300,9 @@ export default function ThreeEkidenPage() {
                                         return sortedRoster.map((m: any) => (
                                             <React.Fragment key={m.id}>
                                                 <div style={{ padding: 6, borderTop: "1px solid #eee" }}>{displayName(m.studentId, m.studentName)}</div>
-                                                {(() => { const it = currentEntry(m.studentId, "出雲"); return (<div style={{ padding: 6, borderTop: "1px solid #eee", textAlign: "center", background: cellBgRank(it?.rank) }}>{entryText(it)}</div>) })()}
-                                                {(() => { const it = currentEntry(m.studentId, "全日本"); return (<div style={{ padding: 6, borderTop: "1px solid #eee", textAlign: "center", background: cellBgRank(it?.rank) }}>{entryText(it)}</div>) })()}
-                                                {(() => { const it = currentEntry(m.studentId, "箱根"); return (<div style={{ padding: 6, borderTop: "1px solid #eee", textAlign: "center", background: cellBgRank(it?.rank) }}>{entryText(it)}</div>) })()}
+                                                {(() => { const it = currentEntry(m.studentId, "出雲"); const name = it?.intervalName || "—"; const time = typeof it?.score === "number" ? formatSeconds(it?.score) : "—"; const rank = it?.rank ? `${it.rank}位` : ""; return (<div style={{ padding: 6, borderTop: "1px solid #eee", textAlign: "center", background: cellBgRank(it?.rank) }}><span>{name}{time !== "—" ? <span style={{ color: it?.isNewRecord ? "red" : undefined }}> {time}</span> : ""}{it?.isNewRecord ? <span style={{ color: "red", marginRight: 2 }}>『新』</span> : null}{rank ? <span style={{ color: it?.isNewRecord ? "red" : undefined }}> {rank}</span> : ""}</span></div>) })()}
+                                                {(() => { const it = currentEntry(m.studentId, "全日本"); const name = it?.intervalName || "—"; const time = typeof it?.score === "number" ? formatSeconds(it?.score) : "—"; const rank = it?.rank ? `${it.rank}位` : ""; return (<div style={{ padding: 6, borderTop: "1px solid #eee", textAlign: "center", background: cellBgRank(it?.rank) }}><span>{name}{time !== "—" ? <span style={{ color: it?.isNewRecord ? "red" : undefined }}> {time}</span> : ""}{it?.isNewRecord ? <span style={{ color: "red", marginRight: 2 }}>『新』</span> : null}{rank ? <span style={{ color: it?.isNewRecord ? "red" : undefined }}> {rank}</span> : ""}</span></div>) })()}
+                                                {(() => { const it = currentEntry(m.studentId, "箱根"); const name = it?.intervalName || "—"; const time = typeof it?.score === "number" ? formatSeconds(it?.score) : "—"; const rank = it?.rank ? `${it.rank}位` : ""; return (<div style={{ padding: 6, borderTop: "1px solid #eee", textAlign: "center", background: cellBgRank(it?.rank) }}><span>{name}{time !== "—" ? <span style={{ color: it?.isNewRecord ? "red" : undefined }}> {time}</span> : ""}{it?.isNewRecord ? <span style={{ color: "red", marginRight: 2 }}>『新』</span> : null}{rank ? <span style={{ color: it?.isNewRecord ? "red" : undefined }}> {rank}</span> : ""}</span></div>) })()}
                                             </React.Fragment>
                                         ))
                                     })()}
@@ -330,12 +330,12 @@ export default function ThreeEkidenPage() {
                                                     const gradeMap: Record<string, number> = { ONE: 1, TWO: 2, THREE: 3, FOUR: 4 }
                                                     const grades = [1, 2, 3, 4] as number[]
                                                     const cols: EkidenType[] = ["出雲", "全日本", "箱根"]
-                                                    const lookup = new Map<string, { intervalName?: string; rank?: number; time?: string }>()
+                                                    const lookup = new Map<string, { intervalName?: string; rank?: number; time?: string; isNewRecord?: boolean }>()
                                                     raw.forEach((it: any) => {
                                                         const g = gradeMap[String(it.grade)] as number
                                                         const name = (it.ekidenId === 5 ? "出雲" : it.ekidenId === 4 ? "全日本" : it.ekidenId === 3 ? "箱根" : undefined) as EkidenType | undefined
                                                         if (!name || !g) return
-                                                        lookup.set(`${g}-${name}`, { intervalName: it.intervalName, rank: typeof it.rank === "number" ? it.rank : undefined, time: typeof it.score === "number" ? formatSeconds(it.score) : undefined })
+                                                        lookup.set(`${g}-${name}`, { intervalName: it.intervalName, rank: typeof it.rank === "number" ? it.rank : undefined, time: typeof it.score === "number" ? formatSeconds(it.score) : undefined, isNewRecord: it?.isNewRecord === true })
                                                     })
                                                     function cellBg(rec?: { rank?: number }) {
                                                         if (!rec) return undefined
@@ -360,9 +360,12 @@ export default function ThreeEkidenPage() {
                                                                             const text = rec?.intervalName ? `${rec.intervalName}${rec?.rank ? `${rec.rank}位` : ""}${rec?.time ? "" : ""}` : ""
                                                                             return (
                                                                                 <div key={`${g}-${c}`} style={{ padding: 6, textAlign: "center", borderTop: "1px solid #eee", background: cellBg(rec), whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", borderLeft: "1px solid #eee" }}>
-                                                                                    <div style={{ whiteSpace: "nowrap" }}>{text}</div>
+                                                                                    <div style={{ whiteSpace: "nowrap" }}>
+                                                                                        {rec?.intervalName ? <span style={{ color: rec?.isNewRecord ? "red" : undefined }}>{rec.intervalName}</span> : null}
+                                                                                        {typeof rec?.rank === "number" ? <span style={{ color: rec?.isNewRecord ? "red" : undefined }}>{`${rec.rank}位`}</span> : null}
+                                                                                    </div>
                                                                                     {rec?.time && (
-                                                                                        <div style={{ fontSize: 12, color: "#555", marginTop: 2, whiteSpace: "nowrap" }}>{rec.time}</div>
+                                                                                        <div style={{ fontSize: 12, color: rec?.isNewRecord ? "red" : "#555", marginTop: 2, whiteSpace: "nowrap" }}>{rec.time}{rec?.isNewRecord ? <span style={{ color: "red", marginRight: 2 }}>『新』</span> : null}</div>
                                                                                     )}
                                                                                 </div>
                                                                             )
@@ -385,4 +388,3 @@ export default function ThreeEkidenPage() {
         </div>
     )
 }
-

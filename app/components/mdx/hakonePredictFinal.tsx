@@ -55,14 +55,14 @@ function HakonePredictFinal({ schoolId, ekidenUserPredictDetailId, year }: { sch
 
             const givenDetailId = ekidenUserPredictDetailId ? Number(ekidenUserPredictDetailId) : undefined
             if (givenDetailId && Number.isFinite(givenDetailId)) {
-                const res = await fetch(`/api/predict/hakone/final/summary?summaryId=${givenDetailId}`)
+                const res = await fetch(`/api/predict/hakone/final/bundle?ekidenThId=${target.id}&summaryId=${givenDetailId}`)
                 const j = res.ok ? await res.json() : null
-                if (j?.group) {
-                    setGroup(j.group)
-                    setTeamId(Number(j?.meta?.teamId))
-                    setSchoolName(String(j?.meta?.schoolName || ""))
-                    if (Number.isFinite(j?.meta?.ekidenThId)) setEkidenThId(Number(j.meta.ekidenThId))
-                    if (Number.isFinite(j?.meta?.eventYear)) setEventYear(Number(j.meta.eventYear))
+                const gs = (j?.groups || []) as any[]
+                const picked = gs.slice().sort((a: any, b: any) => new Date(b?.meta?.createdAt || 0).getTime() - new Date(a?.meta?.createdAt || 0).getTime()).at(0) || null
+                if (picked) {
+                    setGroup(picked)
+                    setTeamId(Number(j?.teamId))
+                    setSchoolName(String(j?.schoolName || ""))
                     return
                 }
             }
@@ -71,12 +71,12 @@ function HakonePredictFinal({ schoolId, ekidenUserPredictDetailId, year }: { sch
             const team = teams.find((t: any) => Number(t.schoolId) === schoolIdNum)
             if (!team) return
             setTeamId(Number(team.id))
-            const res = await fetch(`/api/predict/hakone/final/list?ekidenThId=${target.id}&ekiden_no_teamId=${team.id}`)
+            const res = await fetch(`/api/predict/hakone/final/bundle?ekidenThId=${target.id}&schoolId=${schoolIdNum}`)
             const j = res.ok ? await res.json() : null
             const gs = (j?.groups || []) as any[]
             const picked = gs.slice().sort((a: any, b: any) => new Date(b?.meta?.createdAt || 0).getTime() - new Date(a?.meta?.createdAt || 0).getTime()).at(0) || null
             setGroup(picked)
-            setSchoolName(String(j?.meta?.schoolName || team.schoolName || ""))
+            setSchoolName(String(j?.schoolName || team.schoolName || ""))
         })()
     }, [schoolIdNum, yearNum, ekidenUserPredictDetailId])
 

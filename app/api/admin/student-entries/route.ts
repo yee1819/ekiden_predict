@@ -21,7 +21,8 @@ export async function GET(req: Request) {
     intervalName: i.Ekiden_th_interval?.ekiden_interval?.name,
     rank: i.rank,
     score: i.score,
-    thId: i.Ekiden_thId
+    thId: i.Ekiden_thId,
+    isNewRecord: i.isNewRecord === true
   }))
   return NextResponse.json(shaped)
 }

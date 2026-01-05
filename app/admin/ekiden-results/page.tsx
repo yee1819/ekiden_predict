@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { useSession } from "@/app/lib/auth-client"
-import { Modal, Select, InputNumber, TimePicker, Input, message } from "antd"
+import { Modal, Select, InputNumber, TimePicker, Input, message, Radio } from "antd"
 import dayjs from "dayjs"
 export default function EkidenResultsAdminPage() {
   const router = useRouter()
@@ -181,15 +181,15 @@ export default function EkidenResultsAdminPage() {
     setScoreStr("")
     await loadResults()
   }
-  const [rows, setRows] = useState<Array<{ id: number, studentId?: number, rank?: number, time?: string }>>([])
+  const [rows, setRows] = useState<Array<{ id: number, studentId?: number, rank?: number, time?: string, isNewRecord?: boolean }>>([])
 
   useEffect(() => {
-    setRows(baseIntervals.map((b: any) => ({ id: b.id, studentId: undefined, rank: undefined, time: "" })))
+    setRows(baseIntervals.map((b: any) => ({ id: b.id, studentId: undefined, rank: undefined, time: "", isNewRecord: false })))
   }, [baseIntervals])
   async function submitAll() {
     const tgt = modalTeamId
     if (!tgt) { message.error("请选择队伍"); return }
-    const entries = rows.map(r => ({ ekiden_intervalId: r.id, studentId: r.studentId as number, score: r.time ? (dayjs(r.time, "HH:mm:ss").hour() * 3600 + dayjs(r.time, "HH:mm:ss").minute() * 60 + dayjs(r.time, "HH:mm:ss").second()) : 0, rank: r.rank ?? 0 }))
+    const entries = rows.map(r => ({ ekiden_intervalId: r.id, studentId: r.studentId as number, score: r.time ? (dayjs(r.time, "HH:mm:ss").hour() * 3600 + dayjs(r.time, "HH:mm:ss").minute() * 60 + dayjs(r.time, "HH:mm:ss").second()) : 0, rank: r.rank ?? 0, isNewRecord: r.isNewRecord === true }))
     const invalid = entries.find(e => !e.studentId)
     if (invalid) { message.error("请为每个区间选择队员"); return }
     const res = await fetch("/api/admin/ekiden-results/bulk", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ Ekiden_no_teamId: tgt, entries }) })
@@ -202,7 +202,7 @@ export default function EkidenResultsAdminPage() {
     const timeFmt = (sec: number) => dayjs().startOf("day").add(Number(sec || 0), "second").format("HH:mm:ss")
     setRows(baseIntervals.map((b: any) => {
       const res = teamResults.find((r: any) => r.baseIntervalId === b.id)
-      return { id: b.id, studentId: res?.studentId, rank: res?.rank, time: res ? timeFmt(res.score) : "" }
+      return { id: b.id, studentId: res?.studentId, rank: res?.rank, time: res ? timeFmt(res.score) : "", isNewRecord: res?.isNewRecord === true }
     }))
   }
   function openBulk() {
@@ -254,22 +254,27 @@ export default function EkidenResultsAdminPage() {
         </div>
         {baseIntervals.length > 0 ? (
           <div style={{ maxHeight: 520, overflowY: "auto" }}>
-            <div style={{ display: "grid", gridTemplateColumns: "140px 1fr 100px 140px", gap: 8, alignItems: "center", padding: 8, background: "#fafafa", borderBottom: "1px solid #eee", fontWeight: 600 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "140px 1fr 100px 140px 100px", gap: 8, alignItems: "center", padding: 8, background: "#fafafa", borderBottom: "1px solid #eee", fontWeight: 600 }}>
               <div>{intervalTerm}</div>
               <div>队员</div>
               <div>排名</div>
               <div>成绩</div>
+              <div>新纪录</div>
             </div>
             {rows.map((r, idx) => {
               const name = baseIntervals.find((b: any) => b.id === r.id)?.name ?? (cnNum(idx + 1) + "区")
               const picked = new Set(rows.map(x => x.studentId).filter(v => v && v !== r.studentId))
               const options = memberOptions.map(opt => ({ ...opt, disabled: picked.has(opt.value) }))
               return (
-                <div key={r.id} style={{ display: "grid", gridTemplateColumns: "140px 1fr 100px 140px", gap: 8, alignItems: "center", padding: 8, borderBottom: "1px solid #eee" }}>
+                <div key={r.id} style={{ display: "grid", gridTemplateColumns: "140px 1fr 100px 140px 100px", gap: 8, alignItems: "center", padding: 8, borderBottom: "1px solid #eee" }}>
                   <div>{name}</div>
                   <Select value={r.studentId} onChange={v => setRows(rows => rows.map((x, i) => i === idx ? { ...x, studentId: v } : x))} options={options} placeholder="选择队员" style={{ width: "100%" }} />
                   <InputNumber value={r.rank} onChange={v => setRows(rows => rows.map((x, i) => i === idx ? { ...x, rank: Number(v) } : x))} style={{ width: "100%" }} />
                   <TimePicker value={r.time ? dayjs(r.time, "HH:mm:ss") : null} onChange={v => setRows(rows => rows.map((x, i) => i === idx ? { ...x, time: v ? v.format("HH:mm:ss") : "" } : x))} format="HH:mm:ss" showNow={false} style={{ width: "100%" }} />
+                  <Radio.Group value={r.isNewRecord === true} onChange={v => setRows(rows => rows.map((x, i) => i === idx ? { ...x, isNewRecord: v.target.value } : x))}>
+                    <Radio value={true}>是</Radio>
+                    <Radio value={false}>否</Radio>
+                  </Radio.Group>
                 </div>
               )
             })}

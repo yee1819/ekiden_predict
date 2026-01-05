@@ -15,8 +15,10 @@ export async function GET(req: Request) {
     const requestedIds = Array.from(new Set([...(multiIds || []), ...(repeated || [])]))
     if (!Number.isFinite(ekidenThId)) return NextResponse.json({ error: "missing ekidenThId" }, { status: 400 })
 
+    const cutoffDate = new Date("2026-01-01T22:00:00Z")
+
     if (requestedIds.length > 0) {
-      const cacheName = cache.key("final-counts", { ekidenThId, schoolIds: requestedIds })
+      const cacheName = cache.key("final-counts", { ekidenThId, schoolIds: requestedIds, cutoff: "2026-01-01T22:00:00Z" })
       const hit = await cache.read<Record<number, number>>(cacheName)
       if (hit) return NextResponse.json({ countsBySchoolId: hit })
 
@@ -24,7 +26,7 @@ export async function GET(req: Request) {
       const teamBySchool = new Map<number, number>()
       teams.forEach((t) => teamBySchool.set(t.schoolId, t.id))
 
-      const rows = await prisma.ekiden_User_Predict_Summary.groupBy({ by: ["Ekiden_no_teamId"], where: { Ekiden_thId: ekidenThId }, _count: { _all: true } })
+      const rows = await prisma.ekiden_User_Predict_Summary.groupBy({ by: ["Ekiden_no_teamId"], where: { Ekiden_thId: ekidenThId, createdAt: { lte: cutoffDate } }, _count: { _all: true } })
       const countByTeam = new Map<number, number>()
       rows.forEach((r: any) => countByTeam.set(r.Ekiden_no_teamId, r._count?._all ?? 0))
 
@@ -38,7 +40,7 @@ export async function GET(req: Request) {
     }
 
     if (schoolId || schoolName) {
-      const cacheName = cache.key("final-count", { ekidenThId, schoolId: schoolId ?? null, schoolName: schoolName ?? null })
+      const cacheName = cache.key("final-count", { ekidenThId, schoolId: schoolId ?? null, schoolName: schoolName ?? null, cutoff: "2026-01-01T22:00:00Z" })
       const hit = await cache.read<{ count: number }>(cacheName)
       if (hit) return NextResponse.json(hit)
       let team: any | null = null
@@ -50,16 +52,15 @@ export async function GET(req: Request) {
         team = await prisma.ekiden_no_team.findFirst({ where: { Ekiden_thId: ekidenThId, schoolId: school.id } })
       }
       if (!team) return NextResponse.json({ count: 0 })
-      const count = await prisma.ekiden_User_Predict_Summary.count({ where: { Ekiden_no_teamId: team.id, Ekiden_thId: ekidenThId } })
+      const count = await prisma.ekiden_User_Predict_Summary.count({ where: { Ekiden_no_teamId: team.id, Ekiden_thId: ekidenThId, createdAt: { lte: cutoffDate } } })
       const payload = { count }
       await cache.write(cacheName, payload)
       return NextResponse.json(payload)
     }
 
-    const count = await prisma.ekiden_User_Predict_Summary.count({ where: { Ekiden_thId: ekidenThId } })
+    const count = await prisma.ekiden_User_Predict_Summary.count({ where: { Ekiden_thId: ekidenThId, createdAt: { lte: cutoffDate } } })
     return NextResponse.json({ count })
   } catch {
     return NextResponse.json({ error: "server_error" }, { status: 500 })
   }
 }
-

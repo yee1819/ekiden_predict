@@ -147,6 +147,52 @@ export async function fetchPublic<T>(prefix: string, payload: unknown): Promise<
 export async function fetchPublicOrApi<T>(prefix: string, payload: unknown, apiUrl: string): Promise<T> {
   const hit = await fetchPublic<T>(prefix, payload);
   if (hit != null) return hit as T;
+  try {
+    const g = (globalThis as any);
+    if (!g.__ALL_BUNDLE__) {
+      const r0 = await fetch("/api/bundle/all", { cache: "no-cache" });
+      if (!r0.ok) throw new Error("bundle_fetch_failed")
+      g.__ALL_BUNDLE__ = await r0.json();
+    }
+    const all = g.__ALL_BUNDLE__;
+    if (all) {
+      const num = (v: unknown) => typeof v === "number" ? v : Number(v);
+      if (prefix === "public-ekidens") return (all?.ekidens || []) as T;
+      if (prefix === "public-editions") {
+        const ekidenId = num(payload);
+        return ((all?.editions || []).filter((x: any) => Number(x?.ekidenId) === ekidenId)) as T;
+      }
+      if (prefix === "public-intervals") {
+        const ekidenId = num(payload);
+        return ((all?.intervals || []).filter((x: any) => Number(x?.ekidenId) === ekidenId)) as T;
+      }
+      if (prefix === "public-th-intervals") {
+        const thId = num(payload);
+        return ((all?.thIntervals || []).filter((x: any) => Number(x?.Ekiden_thId) === thId)) as T;
+      }
+      if (prefix === "public-schools") return (all?.schools || []) as T;
+      if (prefix === "public-teams") {
+        const thId = num(payload);
+        return ((all?.teams || []).filter((x: any) => Number(x?.Ekiden_thId) === thId)) as T;
+      }
+      if (prefix === "public-team-members") {
+        const teamId = num(payload);
+        return ((all?.members || []).filter((x: any) => Number(x?.ekiden_no_teamId) === teamId)) as T;
+      }
+      if (prefix === "public-students") {
+        if (payload === "all") return (all?.students || []) as T;
+        const schoolId = num(payload);
+        if (Number.isFinite(schoolId)) {
+          return ((all?.students || []).filter((x: any) => Number(x?.schoolId) === schoolId)) as T;
+        }
+        return (all?.students || []) as T;
+      }
+      if (prefix === "public-student-entries") {
+        const ids = Array.isArray(payload) ? payload.map(num).filter((n) => Number.isFinite(n)) : [];
+        return ((all?.results || []).filter((x: any) => ids.includes(Number(x?.studentId)))) as T;
+      }
+    }
+  } catch { }
   const res = await fetch(apiUrl, { cache: "no-cache" });
   if (res.ok) return await res.json();
   return ([] as unknown) as T;
